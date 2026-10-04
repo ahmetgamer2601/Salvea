@@ -1,0 +1,56 @@
+<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Salvea · Giriş</title><link rel="icon" type="image/png" href="logo.png"><link rel="apple-touch-icon" href="logo.png"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet"><link rel="stylesheet" href="auth.css"></head><body>
+<aside class="brand"><div><h2>Burada herkesin bir yeri var.</h2><p>Salvea, sınıftaki herkesin birbiriyle tanışıp kaynaşması için haftalık karma takımlar kurar.</p></div><img src="logo.png" alt="Salvea logosu"><small style="color:#8fa393">Salvea · Okul rehberlik platformu</small></aside>
+<main><div class="card">
+<h1>Tekrar hoş geldin</h1><p class="sub">E-postan ve şifrenle giriş yap.</p>
+<div class="sess" id="sess" hidden>
+<p><b id="sm"></b> olarak bu tarayıcıda oturum açık.</p>
+<div class="stack" style="margin-top:12px"><button class="btn" id="cont" type="button">Devam et</button><button class="btn ghost" id="other" type="button">Başka hesapla giriş yap</button></div>
+</div>
+<form id="f" novalidate>
+<div class="f"><label for="email">E-posta</label><input id="email" type="email" autocomplete="email"></div>
+<div class="f"><label for="pw">Şifre</label><div class="pw"><input id="pw" type="password" autocomplete="current-password"><button type="button" data-eye="pw">Göster</button></div></div>
+<label class="chk" style="margin:4px 0 14px"><input type="checkbox" id="rem"><span>Bu cihazda beni hatırla</span></label>
+<button class="btn" id="go" type="submit">Giriş yap</button>
+<div class="msg" id="msg" role="alert"></div>
+</form>
+<p class="foot"><button class="link" id="forgot" type="button">Şifremi unuttum</button></p>
+<p class="foot">Hesabın yok mu? <a class="link" href="register.html">Kayıt ol</a></p>
+</div></main>
+<script src="ortak.js"></script>
+<script>
+document.getElementById('f').addEventListener('submit', e => { e.preventDefault(); window.salveaLogin ? window.salveaLogin() : S.show('Sistem bağlantısı kurulamadı. Sayfayı sunucu üzerinden aç (Live Server).'); });
+document.getElementById('forgot').addEventListener('click', () => window.salveaForgot ? window.salveaForgot() : S.show('Sistem bağlantısı kurulamadı. Sayfayı sunucu üzerinden aç (Live Server).'));
+</script>
+<script type="module">
+import { auth, db } from "./firebase.js";
+import { signInWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged, signOut, setPersistence, browserLocalPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+import { doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+const { $, show, bad } = S;
+const errs = { "auth/invalid-credential": "E-posta veya şifre hatalı.", "auth/invalid-email": "E-posta adresi geçersiz.", "auth/too-many-requests": "Çok fazla deneme yapıldı. Biraz bekleyip tekrar dene.", "auth/network-request-failed": "İnternet bağlantını kontrol et." };
+async function route(user) {
+  const s = await getDoc(doc(db, "users", user.uid)); const d = s.data();
+  if (!d) { await signOut(auth); return show("Bu hesaba ait profil bulunamadı. Yeniden kayıt olmayı dene."); }
+  if (user.email && d.email !== user.email) { try { await updateDoc(doc(db, "users", user.uid), { email: user.email }); } catch (_) {} }
+  if (d.admin === true) location.replace("admin.html");
+  else if (d.role === "teacher") location.replace(d.onayli === true ? "teacher.html" : "bekle.html");
+  else location.replace("student.html");
+}
+let cur = null;
+onAuthStateChanged(auth, u => { cur = u; $("sess").hidden = !u; if (u) $("sm").textContent = u.email; });
+$("cont").onclick = () => route(cur).catch(() => show("Devam edilemedi, tekrar dene."));
+$("other").onclick = async () => { await signOut(auth); };
+window.salveaLogin = async () => {
+  const m = $("email").value.trim();
+  if (!m) return bad("email", "E-posta adresini yaz.");
+  if (!$("pw").value) return bad("pw", "Şifreni yaz.");
+  $("go").disabled = true; $("go").textContent = "Giriş yapılıyor…";
+  try { await setPersistence(auth, $("rem").checked ? browserLocalPersistence : browserSessionPersistence); const c = await signInWithEmailAndPassword(auth, m, $("pw").value); await route(c.user); }
+  catch (err) { show(errs[err.code] || "Giriş yapılamadı: " + err.code); $("go").disabled = false; $("go").textContent = "Giriş yap"; }
+};
+window.salveaForgot = async () => {
+  const m = $("email").value.trim();
+  if (!m) return bad("email", "Önce e-posta alanını doldur; sıfırlama bağlantısını oraya göndereceğiz.");
+  try { await sendPasswordResetEmail(auth, m); } catch (_) {}
+  show("Bu adres kayıtlıysa şifre sıfırlama bağlantısı gönderildi. Spam klasörüne de bak.", true);
+};
+</script></body></html>

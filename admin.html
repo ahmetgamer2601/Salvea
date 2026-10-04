@@ -1,0 +1,146 @@
+<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Salvea · Yönetim</title>
+<link rel="icon" type="image/png" href="logo.png"><link rel="apple-touch-icon" href="logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="auth.css"><link rel="stylesheet" href="panel.css"></head>
+<body class="solo"><div class="shell">
+<header class="top"><div class="tile"><img src="logo.png" alt="Salvea"></div><div><b id="hi">Yükleniyor…</b><span>Yönetim paneli</span></div><button class="btn ghost" id="out" type="button">Çıkış yap</button></header>
+<div class="tabs" role="tablist">
+<button role="tab" data-tab="onay" aria-selected="true" id="tOnay">Öğretmen onayları</button>
+<button role="tab" data-tab="okul" aria-selected="false">Okullar</button>
+<button role="tab" data-tab="kisi" aria-selected="false">Kullanıcılar</button></div>
+<section id="onay"></section>
+<section id="okul" hidden>
+<form class="form" id="of" novalidate>
+<div class="f"><label for="oad">Okulun tam adı</label><input id="oad" placeholder="Cemal Mümtaz Sosyal Bilimler Lisesi"></div>
+<div class="f"><label for="okis">Kısaltma</label><input id="okis" placeholder="CMSBL"></div>
+<div class="f"><label for="odig">Diğer yazımlar (virgülle)</label><input id="odig" placeholder="cemal mumtaz sbl, cmsbl lisesi"></div>
+<button class="btn" type="submit">Okul ekle</button></form>
+<h2 class="s">Kayıtlı okullar</h2><div id="olist"></div>
+<h2 class="s">Okulu eşleşmeyen kayıtlar</h2><div id="unm"></div></section>
+<section id="kisi" hidden>
+<div class="tools"><input id="q" type="search" placeholder="İsim, e-posta veya okul ara"></div><div id="klist"></div></section>
+<div class="msg" id="msg" role="alert"></div>
+</div>
+<script src="ortak.js"></script>
+<script type="module">
+import { auth, db } from "./firebase.js";
+import { guard } from "./guard.js";
+import { normalize, bestMatches } from "./okul.js";
+import { signOut } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+import { collection, getDocs, doc, addDoc, updateDoc, arrayUnion, deleteField, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+const me = await guard("admin");
+const { $, show, bad } = S;
+const el = (t, c, txt) => { const e = document.createElement(t); if (c) e.className = c; if (txt != null) e.textContent = txt; return e; };
+$("hi").textContent = "Merhaba, " + me.ad;
+$("out").onclick = async () => { await signOut(auth); location.replace("index.html"); };
+if (me.role === "teacher" && me.onayli) { const a = el("a", "btn ghost", "Öğretmen paneli"); a.href = "teacher.html"; a.style.cssText = "width:auto;padding:10px 18px;font-size:.9rem;text-decoration:none"; $("out").before(a); $("out").style.marginLeft = "0"; }
+document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => document.querySelectorAll(".tabs button").forEach(x => { x.setAttribute("aria-selected", String(x === b)); $(x.dataset.tab).hidden = x !== b; }));
+
+let users = [], okullar = [];
+const ROL = { student: "Öğrenci", teacher: "Öğretmen" };
+const act = async (btn, label, fn) => { const t = btn.textContent; btn.disabled = true; btn.textContent = label; try { await fn(); } catch (e) { show("İşlem başarısız: " + (e.code || e.message)); } btn.disabled = false; btn.textContent = t; };
+const empty = t => el("div", "empty", t);
+const okulSel = (val) => { const s = el("select"); s.append(new Option("Okul seç…", ""), ...okullar.map(o => new Option(o.ad, o.id)), new Option("+ Yeni okul olarak ekle", "__new")); s.value = val || ""; return s; };
+const guess = u => { const t = u.okulYazilan || u.okul || ""; const m = bestMatches(t, okullar)[0]; return u.okulId || (m && m.score >= 0.45 ? m.okul.id : ""); };
+
+async function load() {
+  try {
+    const [u, o] = await Promise.all([getDocs(collection(db, "users")), getDocs(collection(db, "okullar"))]);
+    users = u.docs.map(d => ({ uid: d.id, ...d.data() }));
+    okullar = o.docs.map(d => ({ id: d.id, alias: [], ...d.data() })).sort((a, b) => a.ad.localeCompare(b.ad, "tr"));
+    render();
+  } catch (e) { show("Veriler okunamadı. Firestore kurallarını güncellediğinden ve hesabında admin: true olduğundan emin ol. (" + (e.code || e.message) + ")"); }
+}
+
+// kullanıcıyı okula bağla; yazdığı ismi o okulun yazımlarına ekle (bir sonraki sefer otomatik eşleşsin)
+async function assign(u, val) {
+  let o;
+  if (val === "__new") {
+    const ad = (u.okulYazilan || u.okul || "").trim(); if (!ad) throw new Error("Yazılı okul adı yok");
+    const ref = await addDoc(collection(db, "okullar"), { ad, kisaltma: "", alias: [], olusturma: serverTimestamp() });
+    o = { id: ref.id, ad, alias: [] }; okullar.push(o);
+  } else o = okullar.find(x => x.id === val);
+  await updateDoc(doc(db, "users", u.uid), { okulId: o.id, okul: o.ad });
+  const n = normalize(u.okulYazilan || "");
+  if (n && n !== normalize(o.ad) && !o.alias.includes(n)) { await updateDoc(doc(db, "okullar", o.id), { alias: arrayUnion(n) }); o.alias.push(n); }
+  u.okulId = o.id; u.okul = o.ad;
+}
+
+function renderOnay() {
+  const list = users.filter(u => u.role === "teacher" && !u.onayli && u.durum !== "reddedildi");
+  $("tOnay").textContent = "Öğretmen onayları" + (list.length ? " (" + list.length + ")" : "");
+  if (!list.length) return $("onay").replaceChildren(empty("Onay bekleyen öğretmen yok."));
+  $("onay").replaceChildren(...list.map(u => {
+    const r = el("div", "row a"), a = el("div"), sel = okulSel(guess(u)), ok = el("button", "btn sm", "Onayla"), no = el("button", "btn ghost sm", "Reddet");
+    a.append(el("b", "", u.ad + " " + u.soyad), el("small", "", u.email), el("small", "", "Yazdığı okul: " + (u.okulYazilan || u.okul) + (u.brans ? " · " + u.brans : "")));
+    ok.type = no.type = "button";
+    ok.onclick = () => act(ok, "Onaylanıyor…", async () => {
+      if (!sel.value) return show("Önce öğretmenin okulunu seç.");
+      if (sel.value !== u.okulId) await assign(u, sel.value);
+      await updateDoc(doc(db, "users", u.uid), { onayli: true }); u.onayli = true; render(); show(u.ad + " " + u.soyad + " onaylandı.", true);
+    });
+    no.onclick = () => act(no, "…", async () => { await updateDoc(doc(db, "users", u.uid), { durum: "reddedildi" }); u.durum = "reddedildi"; render(); show("Başvuru reddedildi.", true); });
+    r.append(a, sel, ok, no); return r;
+  }));
+}
+
+function renderOkul() {
+  $("olist").replaceChildren(...(okullar.length ? okullar.map(o => {
+    const r = el("div", "row k"), a = el("div"), chips = el("div", "chips"), inp = el("input"), btn = el("button", "btn sm", "Yazım ekle");
+    const ogr = users.filter(u => u.okulId === o.id && u.role === "student").length, ogt = users.filter(u => u.okulId === o.id && u.role === "teacher").length;
+    [o.kisaltma, ...o.alias].filter(Boolean).forEach(x => chips.append(el("i", "", x)));
+    a.append(el("b", "", o.ad), el("small", "", ogr + " öğrenci · " + ogt + " öğretmen"), chips);
+    inp.placeholder = "Başka bir yazım"; btn.type = "button";
+    btn.onclick = () => act(btn, "…", async () => {
+      const n = normalize(inp.value); if (!n) return;
+      await updateDoc(doc(db, "okullar", o.id), { alias: arrayUnion(n) }); o.alias.push(n); render();
+    });
+    r.append(a, inp, btn); return r;
+  }) : [empty("Henüz okul eklenmedi. Yukarıdan ilk okulu ekle.")]));
+
+  const un = users.filter(u => !u.okulId && !(u.role === "teacher" && !u.onayli));
+  $("unm").replaceChildren(...(un.length ? un.map(u => {
+    const r = el("div", "row k"), a = el("div"), sel = okulSel(guess(u)), btn = el("button", "btn sm", "Ata");
+    a.append(el("b", "", u.ad + " " + u.soyad), el("small", "", ROL[u.role] + " · " + u.email), el("small", "", "Yazdığı okul: " + (u.okulYazilan || u.okul)));
+    btn.type = "button";
+    btn.onclick = () => act(btn, "…", async () => { if (!sel.value) return show("Önce bir okul seç."); await assign(u, sel.value); render(); show("Okul atandı.", true); });
+    r.append(a, sel, btn); return r;
+  }) : [empty("Eşleşmeyen kayıt yok.")]));
+}
+
+function renderKisi() {
+  const q = normalize($("q").value);
+  const rows = users.filter(u => !q || normalize([u.ad, u.soyad, u.email, u.okul].join(" ")).includes(q));
+  if (!rows.length) return $("klist").replaceChildren(empty("Kullanıcı bulunamadı."));
+  $("klist").replaceChildren(...rows.slice(0, 200).map(u => {
+    const r = el("div", "row a"), a = el("div"), b = el("b", "", u.ad + " " + u.soyad);
+    if (u.admin) b.append(el("span", "pill", "Admin"));
+    a.append(b, el("small", "", u.email), el("small", "", (ROL[u.role] || u.role) + (u.role === "teacher" && !u.onayli ? " · onay bekliyor" : "")));
+    const sel = okulSel(u.okulId); sel.onchange = () => { if (sel.value) assign(u, sel.value).then(() => { render(); show("Okul güncellendi.", true); }).catch(e => show("Güncellenemedi: " + (e.code || e.message))); };
+    const adm = el("button", "btn ghost sm", u.admin ? "Adminliği kaldır" : "Admin yap"); adm.type = "button"; adm.disabled = u.uid === me.uid;
+    adm.onclick = () => act(adm, "…", async () => { await updateDoc(doc(db, "users", u.uid), { admin: !u.admin }); u.admin = !u.admin; render(); });
+    const uy = el("button", "btn ghost sm", u.uyari ? "Uyarıyı kaldır" : "E-posta uyarısı"); uy.type = "button";
+    const inl = el("div", "inl"), ti = el("input"), go = el("button", "btn sm", "Gönder"); inl.hidden = true; go.type = "button";
+    ti.value = "E-posta adresin geçersiz veya sahte görünüyor. Lütfen gerçek e-posta adresinle güncelle."; inl.append(ti, go);
+    uy.onclick = () => u.uyari ? act(uy, "…", async () => { await updateDoc(doc(db, "users", u.uid), { uyari: deleteField() }); delete u.uyari; render(); }) : (inl.hidden = !inl.hidden);
+    go.onclick = () => act(go, "…", async () => { if (!ti.value.trim()) return; await updateDoc(doc(db, "users", u.uid), { uyari: ti.value.trim() }); u.uyari = ti.value.trim(); render(); show("Uyarı gönderildi. Kullanıcı girişinde görecek.", true); });
+    r.append(a, sel, adm, uy, inl); return r;
+  }));
+}
+function render() { renderOnay(); renderOkul(); renderKisi(); }
+$("q").oninput = renderKisi;
+$("of").addEventListener("submit", async e => {
+  e.preventDefault();
+  const ad = $("oad").value.trim(); if (!ad) return bad("oad", "Okulun adını yaz.");
+  const dup = bestMatches(ad, okullar)[0];
+  if (dup && dup.score >= 0.85) return bad("oad", "Buna benzer bir okul zaten var: " + dup.okul.ad + ". Farklı bir yazımsa o okula \"Yazım ekle\" ile ekle.");
+  const kis = $("okis").value.trim(), alias = [kis, ...$("odig").value.split(",")].map(normalize).filter(Boolean);
+  try {
+    const ref = await addDoc(collection(db, "okullar"), { ad, kisaltma: kis, alias, olusturma: serverTimestamp() });
+    okullar.push({ id: ref.id, ad, kisaltma: kis, alias }); okullar.sort((a, b) => a.ad.localeCompare(b.ad, "tr"));
+    ["oad", "okis", "odig"].forEach(i => $(i).value = ""); render(); show(ad + " eklendi.", true);
+  } catch (err) { show("Okul eklenemedi: " + (err.code || err.message)); }
+});
+load();
+</script></body></html>

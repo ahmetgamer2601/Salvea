@@ -1,0 +1,188 @@
+<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Salvea · Öğrenci</title>
+<link rel="icon" type="image/png" href="logo.png"><link rel="apple-touch-icon" href="logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="auth.css"><link rel="stylesheet" href="panel.css"></head>
+<body class="solo"><div class="shell" style="max-width:720px">
+<header class="top"><div class="tile"><img src="logo.png" alt="Salvea"></div><div><b id="hi">Yükleniyor…</b><span id="sc"></span></div>
+<button class="alert" id="ab" type="button" aria-expanded="false" aria-controls="ac" aria-label="Profilini tamamla" hidden>!</button>
+<button class="btn ghost" id="out" type="button">Çıkış yap</button></header>
+<div class="acard" id="ac" hidden></div>
+<div class="tabs" role="tablist"><button role="tab" data-tab="takim" aria-selected="true">Takımım</button><button role="tab" data-tab="nasil" aria-selected="false">Nasılsın?</button><button role="tab" data-tab="profil" aria-selected="false">Profilim</button></div>
+<section id="takim"><div id="tk"></div><div id="ogrt"></div></section>
+<section id="nasil" hidden></section>
+<section id="profil" hidden>
+<div class="pf"><div class="av" id="av"></div><div><b>Profil fotoğrafı</b><small class="hint">Fotoğrafını öğretmenlerin görür. İstersen aşağıdaki kutuyla takım arkadaşların da görebilir.</small>
+<div class="acts"><label class="btn ghost sm filebtn">Fotoğraf seç<input type="file" id="file" accept="image/*" hidden></label><button class="btn ghost sm" id="rmf" type="button" hidden>Kaldır</button></div></div></div>
+<label class="chk" style="margin:-8px 0 20px"><input type="checkbox" id="fp"><span>Fotoğrafım takım arkadaşlarıma da görünsün <small class="hint" style="display:inline">(bir sonraki takım döneminden itibaren)</small></span></label>
+<div class="f"><label for="tan">Kendini kısaca tanıt</label><textarea id="tan" maxlength="300" rows="4" placeholder="Nasıl biri olduğunu, neleri sevdiğini yaz."></textarea><small class="hint"><span id="cnt">0</span>/300 · Bunu yalnızca öğretmenlerin görür.</small></div>
+<div class="f"><label>İlgi alanların (en az 3)</label><div class="chips sel" id="ilg"></div>
+<div class="addrow"><input id="ozel" maxlength="24" placeholder="Başka bir ilgi ekle"><button type="button" class="btn ghost sm" id="ozelb">Ekle</button></div><small class="hint">İlgi alanlarını takım arkadaşlarınla paylaşırız.</small></div>
+<div class="f"><label>Takımla birlikte yapmaktan hoşlanacağın şeyler (en az 1)</label><div class="chips sel" id="akt"></div></div>
+<div class="f"><label for="bil">Seni tanımak için ilginç bir şey</label><input id="bil" maxlength="100" placeholder="Örn. 3 dil biliyorum, her sabah yürüyüşe çıkarım"><small class="hint">Takım arkadaşlarınla paylaşılır.</small></div>
+<button class="btn" id="save" type="button">Profilimi kaydet</button></section>
+<div class="msg" id="msg" role="alert"></div>
+</div>
+<script src="ortak.js"></script>
+<script type="module">
+import { auth, db } from "./firebase.js";
+import { guard } from "./guard.js";
+import { warnBanner } from "./eposta.js";
+import { mountNav } from "./nav.js";
+import { ILGILER, AKTIVITELER, SORULAR, isoWeek } from "./veri.js";
+import { signOut } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+import { collection, query, where, getDocs, getDoc, doc, setDoc, addDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+const me = await guard("student");
+warnBanner(me);
+mountNav(me, "home");
+const { $, show } = S;
+const el = (t, c, txt) => { const e = document.createElement(t); if (c) e.className = c; if (txt != null) e.textContent = txt; return e; };
+$("hi").textContent = "Merhaba, " + (me.takmaAd || me.ad); $("sc").textContent = me.okul + " · " + me.sinif + "-" + me.sube;
+$("out").onclick = async () => { await signOut(auth); location.replace("index.html"); };
+document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => go(b.dataset.tab));
+function go(t) { document.querySelectorAll(".tabs button").forEach(x => { x.setAttribute("aria-selected", String(x.dataset.tab === t)); $(x.dataset.tab).hidden = x.dataset.tab !== t; }); }
+
+let prof = { tanitim: "", ilgiler: [], aktiviteler: [], bilgi: "" }, foto = null, takimlar = [], ogrt = [], chk = [];
+const today = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+const fmt = s => new Date(s + "T12:00:00").toLocaleDateString("tr-TR", { day: "numeric", month: "long" });
+const initials = n => (n || "?").trim().charAt(0).toLocaleUpperCase("tr");
+const avatar = (box, f, name) => { box.replaceChildren(); if (f) { const i = el("img"); i.src = f; i.alt = ""; box.append(i); } else box.textContent = initials(name); };
+
+async function load() {
+  try {
+    const [p, f, t] = await Promise.all([getDoc(doc(db, "profiller", me.uid)), getDoc(doc(db, "fotolar", me.uid)), getDocs(query(collection(db, "takimlar"), where("uyeler", "array-contains", me.uid)))]);
+    if (p.exists()) prof = { ...prof, ...p.data() };
+    if (f.exists()) foto = f.data().foto;
+    takimlar = t.docs.map(d => ({ id: d.id, ...d.data() })).filter(x => x.aktif);
+    if (me.okulId) try { ogrt = (await getDocs(query(collection(db, "ogretmenler"), where("okulId", "==", me.okulId)))).docs.map(d => d.data()); } catch (_) {}
+    try { chk = (await getDocs(query(collection(db, "checkinler"), where("uid", "==", me.uid)))).docs.map(d => d.data()); } catch (_) {}
+    // admin okulu sonradan atadıysa kayıtlardaki okul bilgisini güncelle
+    if (p.exists() && (p.data().okulId || null) !== (me.okulId || null)) setDoc(doc(db, "profiller", me.uid), { ...prof, okulId: me.okulId || null }).catch(() => {});
+    if (f.exists() && (f.data().okulId || null) !== (me.okulId || null)) setDoc(doc(db, "fotolar", me.uid), { foto, okulId: me.okulId || null, guncelleme: serverTimestamp() }).catch(() => {});
+  } catch (e) { show("Veriler okunamadı. Firestore kurallarını güncellediğinden emin ol. (" + (e.code || e.message) + ")"); }
+  fillForm(); renderTeam(); renderOgrt(); renderNasil(); updateAlert();
+}
+
+/* ---------- Profil ---------- */
+const eksik = () => { const e = []; if ((prof.tanitim || "").trim().length < 20) e.push("kısa tanıtımını yaz (en az 20 karakter)"); if (prof.ilgiler.length < 3) e.push("en az 3 ilgi alanı seç"); if (!prof.aktiviteler.length) e.push("birlikte yapmak istediğin en az 1 şeyi seç"); return e; };
+const yuzde = () => Math.round([(prof.tanitim || "").trim().length >= 20, prof.ilgiler.length >= 3, prof.aktiviteler.length >= 1, (prof.bilgi || "").trim().length > 0, !!foto].filter(Boolean).length * 20);
+function chips(box, all, sel) {
+  box.replaceChildren(...[...new Set([...all, ...sel])].map(x => { const b = el("button", "chip", x); b.type = "button"; b.setAttribute("aria-pressed", String(sel.includes(x)));
+    b.onclick = () => { const i = sel.indexOf(x); i >= 0 ? sel.splice(i, 1) : sel.push(x); b.setAttribute("aria-pressed", String(i < 0)); }; return b; }));
+}
+function fillForm() {
+  $("tan").value = prof.tanitim || ""; $("cnt").textContent = $("tan").value.length; $("bil").value = prof.bilgi || "";
+  chips($("ilg"), ILGILER, prof.ilgiler); chips($("akt"), AKTIVITELER, prof.aktiviteler);
+  avatar($("av"), foto, me.takmaAd || me.ad); $("rmf").hidden = !foto; $("fp").checked = !!prof.fotoPaylas;
+}
+$("tan").oninput = () => $("cnt").textContent = $("tan").value.length;
+$("ozelb").onclick = () => { const v = $("ozel").value.trim(); if (!v) return; if (prof.ilgiler.length >= 12) return show("En fazla 12 ilgi alanı ekleyebilirsin."); if (!prof.ilgiler.includes(v)) prof.ilgiler.push(v); $("ozel").value = ""; chips($("ilg"), ILGILER, prof.ilgiler); };
+$("ozel").onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); $("ozelb").click(); } };
+$("save").onclick = async () => {
+  prof.tanitim = $("tan").value.trim(); prof.bilgi = $("bil").value.trim(); prof.fotoPaylas = $("fp").checked;
+  $("save").disabled = true;
+  try {
+    await setDoc(doc(db, "profiller", me.uid), { tanitim: prof.tanitim, ilgiler: prof.ilgiler, aktiviteler: prof.aktiviteler, bilgi: prof.bilgi, fotoPaylas: prof.fotoPaylas, tamam: eksik().length === 0, okulId: me.okulId || null, guncelleme: serverTimestamp() });
+    show(eksik().length ? "Kaydedildi. Profilinde hâlâ eksikler var." : "Profilin kaydedildi. Teşekkürler!", true);
+  } catch (e) { show("Kaydedilemedi: " + (e.code || e.message)); }
+  $("save").disabled = false; updateAlert();
+};
+function resize(file, size = 256) {
+  return new Promise((res, rej) => { const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = () => { const s = Math.min(img.width, img.height), c = document.createElement("canvas"); c.width = c.height = size;
+      c.getContext("2d").drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, 0, 0, size, size); URL.revokeObjectURL(url); res(c.toDataURL("image/jpeg", 0.82)); };
+    img.onerror = () => rej(new Error("Görsel okunamadı")); img.src = url; });
+}
+$("file").onchange = async () => {
+  const f = $("file").files[0]; if (!f) return;
+  if (!f.type.startsWith("image/")) return show("Lütfen bir görsel dosyası seç.");
+  try { foto = await resize(f); await setDoc(doc(db, "fotolar", me.uid), { foto, okulId: me.okulId || null, guncelleme: serverTimestamp() }); avatar($("av"), foto, me.ad); $("rmf").hidden = false; show("Fotoğrafın kaydedildi.", true); }
+  catch (e) { foto = null; show("Fotoğraf kaydedilemedi: " + (e.code || e.message)); }
+  $("file").value = ""; updateAlert();
+};
+$("rmf").onclick = async () => { try { await deleteDoc(doc(db, "fotolar", me.uid)); foto = null; avatar($("av"), null, me.ad); $("rmf").hidden = true; updateAlert(); } catch (e) { show("Silinemedi: " + (e.code || e.message)); } };
+
+/* ---------- Uyarı ikonu (açılıp kapanan) ---------- */
+function updateAlert() {
+  const e = eksik();
+  if (!e.length) { $("ab").hidden = true; $("ac").hidden = true; return; }
+  $("ab").hidden = false;
+  const bar = el("div", "bar"), i = el("i"); i.style.width = yuzde() + "%"; bar.append(i);
+  const ul = el("ul"); e.forEach(x => ul.append(el("li", "", x)));
+  const go2 = el("button", "btn sm", "Profilime git"); go2.type = "button"; go2.onclick = () => { go("profil"); $("ac").hidden = true; $("ab").setAttribute("aria-expanded", "false"); };
+  $("ac").replaceChildren(el("b", "", "Hesabını tamamla · %" + yuzde()), bar, el("span", "", "Takım arkadaşların seni tanıyabilsin diye:"), ul, go2);
+}
+$("ab").onclick = () => { $("ac").hidden = !$("ac").hidden; $("ab").setAttribute("aria-expanded", String(!$("ac").hidden)); $("ab").classList.add("seen"); };
+
+/* ---------- Takımım ---------- */
+function renderTeam() {
+  const box = $("tk");
+  if (!takimlar.length) return box.replaceChildren(el("div", "empty", "Henüz bir takımın yok. Öğretmenin yeni bir dönem başlattığında takımın burada görünecek. O zamana kadar profilini tamamlayabilirsin."));
+  box.replaceChildren(...takimlar.map(t => {
+    const c = el("div", "team"), t0 = today();
+    const gun = t0 < t.baslangic ? Math.ceil((new Date(t.baslangic) - new Date(t0)) / 864e5) + " gün sonra başlıyor" : t0 > t.bitis ? "Bu dönem sona erdi" : (Math.round((new Date(t.bitis) - new Date(t0)) / 864e5) + 1) + " gün kaldı";
+    c.append(el("small", "hint", "Takımın adı"), el("h3", "", t.ad), el("div", "meta", fmt(t.baslangic) + " – " + fmt(t.bitis) + " · " + gun));
+    c.append(el("small", "hint", "Takım arkadaşların"));
+    t.uyeler.forEach(uid => {
+      const b = t.uyeBilgi[uid] || {}, m = el("div", "mem"), av = el("div", "av s"), d = el("div"), self = uid === me.uid;
+      avatar(av, b.foto || null, b.ad); d.append(el("b", "", (b.ad || "Üye") + (self ? " (sen)" : "")));
+      if (!self) {
+        const ortak = (b.ilgiler || []).filter(x => prof.ilgiler.includes(x));
+        if (ortak.length) d.append(el("small", "", "Ortak ilgiler: " + ortak.join(", ")));
+        const rest = (b.ilgiler || []).filter(x => !ortak.includes(x));
+        if (rest.length) { const ch = el("div", "chips"); rest.slice(0, 6).forEach(x => ch.append(el("i", "", x))); d.append(ch); }
+        if (b.bilgi) d.append(el("small", "", "“" + b.bilgi + "”"));
+      }
+      m.append(av, d); c.append(m);
+    });
+    const q = el("div", "q"), p = el("p"), nb = el("button", "btn ghost sm", "Başka soru");
+    const pick = () => p.textContent = SORULAR[Math.floor(Math.random() * SORULAR.length)]; pick(); nb.type = "button"; nb.onclick = pick;
+    q.append(el("small", "", "Sohbeti başlatmak için"), p, nb); c.append(q); return c;
+  }));
+}
+function renderOgrt() {
+  const box = $("ogrt"); if (!ogrt.length) return box.replaceChildren();
+  box.replaceChildren(el("h2", "s", "Rehber öğretmenlerin"), ...ogrt.map(o => { const c = el("div", "team"), m = el("div", "mem"), av = el("div", "av s"), d = el("div");
+    avatar(av, o.foto, o.ad); d.append(el("b", "", o.ad)); if (o.brans) d.append(el("small", "", o.brans)); if (o.tanitim) d.append(el("small", "", o.tanitim));
+    m.style.borderTop = "0"; m.style.padding = "0"; m.append(av, d); c.append(m); return c; }));
+}
+
+/* ---------- Nasılsın? (haftalık check-in + yardım) ---------- */
+const WEEK = isoWeek(new Date());
+const FACES = [["😞", "Çok kötü"], ["😕", "Kötü"], ["😐", "İdare eder"], ["🙂", "İyi"], ["😄", "Çok iyi"]];
+const KON = [["evet", "Evet"], ["biraz", "Biraz"], ["hayir", "Hayır"]];
+let ci = { ruh: null, yalniz: null, konusma: null }, ynot = "", ysent = false;
+function chipRow(items, cur, set) { const r = el("div", "chips sel"); items.forEach(([v, t]) => { const b = el("button", "chip", t); b.type = "button"; b.setAttribute("aria-pressed", String(cur === v)); b.onclick = () => { set(v); renderNasil(); }; r.append(b); }); return r; }
+function renderNasil() {
+  const mine = chk.find(c => c.hafta === WEEK); if (mine && ci.ruh === null) ci = { ruh: mine.ruh, yalniz: mine.yalniz, konusma: mine.konusma };
+  const card = el("div", "team"), lab = (t, mt) => { const l = el("label", "", t); l.style.marginTop = mt + "px"; return l; };
+  card.append(el("h3", "", "Bu hafta nasılsın?"), el("p", "hint", "Cevapların doğru ya da yanlış değil. Bunları yalnızca rehber öğretmenin görür." + (mine ? " Bu hafta zaten cevapladın, istersen değiştirebilirsin." : "")));
+  card.append(lab("1. Genel olarak nasıl hissettin?", 14), chipRow(FACES.map(([e, t], i) => [i + 1, e + " " + t]), ci.ruh, v => ci.ruh = v));
+  const rg = el("input"), val = el("b", "", ci.yalniz === null ? "–" : ci.yalniz + " / 10"), sc = el("div", "rng");
+  rg.type = "range"; rg.min = 0; rg.max = 10; rg.step = 1; rg.value = ci.yalniz === null ? 5 : ci.yalniz; rg.setAttribute("aria-label", "Yalnızlık puanı");
+  rg.oninput = () => { ci.yalniz = +rg.value; val.textContent = ci.yalniz + " / 10"; };
+  sc.append(el("span", "", "0 = hiç"), val, el("span", "", "10 = çok"));
+  card.append(lab("2. Bu hafta kendini ne kadar yalnız hissettin? (çubuğu kaydır)", 20), rg, sc);
+  card.append(lab("3. Takım arkadaşlarınla bu hafta konuşabildin mi?", 20), chipRow(KON, ci.konusma, v => ci.konusma = v));
+  const go = el("button", "btn", mine ? "Cevabımı güncelle" : "Gönder"); go.type = "button"; go.style.marginTop = "22px";
+  go.onclick = async () => {
+    if (ci.ruh === null || ci.yalniz === null || ci.konusma === null) return show("Lütfen üç soruyu da cevapla.");
+    go.disabled = true;
+    try { await setDoc(doc(db, "checkinler", me.uid + "_" + WEEK), { uid: me.uid, okulId: me.okulId || null, hafta: WEEK, gun: today(), ruh: ci.ruh, yalniz: ci.yalniz, konusma: ci.konusma, tarih: serverTimestamp() });
+      chk = chk.filter(c => c.hafta !== WEEK).concat({ hafta: WEEK, ...ci }); show("Teşekkürler, cevabın kaydedildi.", true); renderNasil(); }
+    catch (e) { show("Kaydedilemedi: " + (e.code || e.message)); go.disabled = false; }
+  };
+  card.append(go);
+  const parts = [card], hs = [...chk].sort((a, b) => b.hafta.localeCompare(a.hafta)).slice(0, 6);
+  if (hs.length) { const hc = el("div", "team"); hc.append(el("h3", "", "Son haftaların"), el("p", "hint", "Yalnızlık puanın (0 çok iyi, 10 çok zor)"));
+    hs.forEach(c => { const r = el("div", "hist"), tr = el("div", "tr"), i = el("i"); i.style.width = c.yalniz * 10 + "%"; tr.append(i); r.append(el("span", "", c.hafta), tr, el("span", "", String(c.yalniz))); hc.append(r); }); parts.push(hc); }
+  const hp = el("div", "q"), ta = el("textarea"), hb = el("button", "btn sm", "Rehber öğretmenimle konuşmak istiyorum");
+  ta.rows = 2; ta.maxLength = 200; ta.placeholder = "İstersen kısa bir not bırak (isteğe bağlı)"; ta.value = ynot; ta.oninput = () => ynot = ta.value; hb.type = "button";
+  hb.onclick = async () => { hb.disabled = true; try { await addDoc(collection(db, "yardim"), { uid: me.uid, okulId: me.okulId || null, ad: me.ad + " " + me.soyad, sinif: me.sinif + "-" + me.sube, not: ynot.trim(), durum: "yeni", tarih: serverTimestamp() }); ysent = true; ynot = ""; renderNasil(); }
+    catch (e) { show("Gönderilemedi: " + (e.code || e.message)); hb.disabled = false; } };
+  hp.append(el("b", "", "Konuşmak ister misin?"), el("p", "hint", "Bu düğme herkes için var. Basarsan rehber öğretmenin sana ulaşır. Bunu yalnızca o görür."), ysent ? el("p", "", "Rehber öğretmenine haber verdik. Seninle görüşecek.") : ta);
+  if (!ysent) hp.append(hb); parts.push(hp);
+  $("nasil").replaceChildren(...parts);
+}
+load();
+</script></body></html>

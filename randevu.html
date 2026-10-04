@@ -1,0 +1,167 @@
+<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Salvea · Randevu</title>
+<link rel="icon" type="image/png" href="logo.png"><link rel="apple-touch-icon" href="logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="auth.css"><link rel="stylesheet" href="panel.css"></head>
+<body class="solo"><div class="shell" style="max-width:860px">
+<header class="top"><div class="tile"><img src="logo.png" alt="Salvea"></div><div><b id="hi">Yükleniyor…</b><span id="sc"></span></div></header>
+<div id="app"></div>
+<div class="msg" id="msg" role="alert"></div>
+</div>
+<script src="ortak.js"></script>
+<script type="module">
+import { db } from "./firebase.js";
+import { guard } from "./guard.js";
+import { mountNav } from "./nav.js";
+import { collection, query, where, getDocs, getDoc, doc, setDoc, addDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+const me = await guard();
+mountNav(me, "randevu");
+const { $, show } = S;
+const el = (t, c, txt) => { const e = document.createElement(t); if (c) e.className = c; if (txt != null) e.textContent = txt; return e; };
+const empty = t => el("div", "empty", t);
+const myName = me.ad + " " + me.soyad, teacher = me.role === "teacher";
+$("hi").textContent = teacher ? "Görüşme takvimi" : "Randevu al"; $("sc").textContent = me.okul || "";
+const SAAT = ["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00"], GUN = ["Pzt", "Sal", "Çar", "Per", "Cum"];
+const iso = d => new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10);
+const weekDays = off => { const d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() - ((d.getDay() + 6) % 7) + off * 7); return [0, 1, 2, 3, 4].map(i => { const x = new Date(d); x.setDate(d.getDate() + i); return iso(x); }); };
+const fmtS = s => new Date(s + "T12:00:00").toLocaleDateString("tr-TR", { day: "numeric", month: "numeric" });
+const fmtL = s => new Date(s + "T12:00:00").toLocaleDateString("tr-TR", { weekday: "long", day: "numeric", month: "long" });
+const past = (d, h) => new Date(d + "T" + h + ":00") < new Date();
+const STAT = { bekliyor: ["Bekliyor", "b"], onaylandi: ["Onaylandı", "o"], reddedildi: ["Reddedildi", "r"], iptal: ["İptal", "i"] };
+let off = 0, sel = null, tmpl = {}, rand = [], ogrt = [], tSel = null, dolu = {};
+if (!me.okulId) $("app").replaceChildren(empty("Okulun henüz yönetici tarafından eşleştirilmedi. Eşleştirilince randevu sistemini kullanabilirsin."));
+else (teacher ? initT() : initS());
+
+function weekBar() {
+  const w = el("div", "wk");
+  [["Bu hafta", 0], ["Gelecek hafta", 1], ["2 hafta sonra", 2], ["3 hafta sonra", 3]].forEach(([t, o]) => { const b = el("button", "chip", t); b.type = "button"; b.setAttribute("aria-pressed", String(off === o)); b.onclick = () => { off = o; sel = null; draw(); }; w.append(b); });
+  return w;
+}
+const legend = items => { const l = el("div", "lg"); items.forEach(([c, t]) => { const s = el("span"), i = el("i"); i.style.background = c; s.append(i, t); l.append(s); }); return l; };
+function grid(stateOf, onPick) {
+  const days = weekDays(off), g = el("div", "grid5"); g.append(el("div"));
+  days.forEach((d, i) => g.append(el("div", "hd", GUN[i] + "\n" + fmtS(d))));
+  g.querySelectorAll(".hd").forEach(h => h.style.whiteSpace = "pre-line");
+  SAAT.forEach(h => {
+    g.append(el("div", "hr", h));
+    days.forEach((d, i) => { const s = stateOf(d, i, h), b = el("button", "cell " + s.k, s.t || ""); b.type = "button"; b.setAttribute("aria-label", fmtL(d) + " " + h + " " + (s.t || s.k));
+      b.setAttribute("aria-pressed", String(!!sel && sel.date === d && sel.saat === h)); if (s.k === "kapali" || s.k === "gecmis" || (s.k === "dolu" && !onPick.dolu)) b.disabled = true; else b.onclick = () => { sel = { date: d, saat: h, di: i, s }; draw(); }; g.append(b); });
+  });
+  return g;
+}
+
+/* ===================== ÖĞRETMEN ===================== */
+async function initT() {
+  try {
+    const [t, r] = await Promise.all([getDoc(doc(db, "musaitlik", me.uid)), getDocs(query(collection(db, "randevular"), where("ogretmen", "==", me.uid)))]);
+    tmpl = t.exists() ? t.data().saatler || {} : {}; rand = r.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (e) { show("Veriler okunamadı. Firestore kurallarını güncellediğinden emin ol. (" + (e.code || e.message) + ")"); }
+  draw();
+}
+const saveT = () => setDoc(doc(db, "musaitlik", me.uid), { okulId: me.okulId, ad: myName, saatler: tmpl, guncelleme: serverTimestamp() });
+const syncDolu = date => setDoc(doc(db, "dolu", me.uid + "_" + date), { okulId: me.okulId, ogretmen: me.uid, tarih: date, saatler: rand.filter(x => x.tarih === date && x.durum === "onaylandi").map(x => x.saat) });
+const slotT = (d, di, h) => {
+  const r = rand.filter(x => x.tarih === d && x.saat === h), on = r.find(x => x.durum === "onaylandi"), bk = r.filter(x => x.durum === "bekliyor");
+  if (on) return { k: "dolu", t: on.tur === "mesgul" ? on.baslik : "Görüşme", r: on };
+  if (bk.length) return { k: "talep", t: "Talep (" + bk.length + ")", rs: bk };
+  return (tmpl[di] || []).includes(h) ? { k: "musait", t: "Müsait" } : { k: "kapali", t: "" };
+};
+async function run(btn, label, fn) { const o = btn.textContent; btn.disabled = true; btn.textContent = label; try { await fn(); } catch (e) { show("İşlem başarısız: " + (e.code || e.message)); } btn.disabled = false; btn.textContent = o; }
+function draw() { teacher ? drawT() : drawS(); }
+function drawT() {
+  const parts = [el("p", "hint", "Yeşil saatler öğrencilerin randevu isteyebileceği saatlerdir. Bir saate tıklayıp o saati her hafta müsait yapabilir ya da kendi görüşmeni ve meşgul olduğun saati girebilirsin."), weekBar(),
+    legend([["#e3eedf", "Müsait"], ["#fbf0cf", "Talep var"], ["#d8d6cb", "Dolu / meşgul"], ["transparent", "Kapalı"]]), grid(slotT, { dolu: true })];
+  if (sel) {
+    const x = slotT(sel.date, sel.di, sel.saat), p = el("div", "gor"); p.append(el("h3", "", fmtL(sel.date) + " · " + sel.saat));
+    if (x.k === "dolu") {
+      p.append(el("p", "", x.r.tur === "mesgul" ? "Meşgul / görüşme: " + x.r.baslik : x.r.ogrenciAd + " ile randevu" + (x.r.not ? " · Not: " + x.r.not : "")));
+      const b = el("button", "btn ghost sm", "İptal et"); b.type = "button";
+      b.onclick = () => run(b, "…", async () => { if (x.r.tur === "mesgul") { await deleteDoc(doc(db, "randevular", x.r.id)); rand = rand.filter(y => y.id !== x.r.id); } else { await updateDoc(doc(db, "randevular", x.r.id), { durum: "iptal" }); x.r.durum = "iptal"; } await syncDolu(sel.date); sel = null; draw(); });
+      p.append(b);
+    } else if (x.k === "talep") p.append(el("p", "hint", "Bu saat için bekleyen talep var. Aşağıdaki “Bekleyen talepler” bölümünden yanıtlayabilirsin."));
+    else {
+      const tg = el("button", "btn ghost sm", x.k === "musait" ? "Bu saati her hafta kapat" : "Bu saati her hafta müsait yap"); tg.type = "button";
+      tg.onclick = () => run(tg, "…", async () => { const a = new Set(tmpl[sel.di] || []); a.has(sel.saat) ? a.delete(sel.saat) : a.add(sel.saat); tmpl[sel.di] = [...a].sort(); await saveT(); draw(); });
+      const f = el("div", "addrow"), ti = el("input"), ab = el("button", "btn sm", "Meşgul / görüşme ekle"); ti.placeholder = "Örn. Veli görüşmesi, toplantı"; ti.maxLength = 60; ab.type = "button";
+      ab.onclick = () => run(ab, "…", async () => { if (!ti.value.trim()) { ti.classList.add("bad"); return show("Kısa bir açıklama yaz."); }
+        const d = { okulId: me.okulId, ogretmen: me.uid, ogretmenAd: myName, ogrenci: null, tur: "mesgul", baslik: ti.value.trim(), tarih: sel.date, saat: sel.saat, durum: "onaylandi", olusturma: serverTimestamp() };
+        const r = await addDoc(collection(db, "randevular"), d); rand.push({ id: r.id, ...d }); await syncDolu(sel.date); sel = null; draw(); });
+      f.append(ti, ab); p.append(tg, el("div", "", "")); p.lastChild.style.height = "12px"; p.append(f);
+    }
+    parts.push(p);
+  }
+  const bk = rand.filter(x => x.durum === "bekliyor" && !past(x.tarih, x.saat)).sort((a, b) => (a.tarih + a.saat).localeCompare(b.tarih + b.saat));
+  parts.push(el("h2", "s", "Bekleyen talepler" + (bk.length ? " (" + bk.length + ")" : "")));
+  if (!bk.length) parts.push(empty("Bekleyen randevu talebi yok."));
+  bk.forEach(r => {
+    const c = el("div", "gor"), yi = el("input"), ok = el("button", "btn sm", "Onayla"), no = el("button", "btn ghost sm", "Reddet"), acts = el("div", "acts"); ok.type = no.type = "button"; acts.style.cssText = "display:flex;gap:8px;margin-top:10px";
+    yi.placeholder = "Öğrenciye kısa yanıt (isteğe bağlı)"; yi.maxLength = 120; yi.style.marginTop = "8px";
+    c.append(el("h3", "", r.ogrenciAd), el("p", "hint", fmtL(r.tarih) + " · " + r.saat + (r.sinif ? " · " + r.sinif : "")), el("p", "", r.not ? "Not: " + r.not : "Not bırakmadı."), yi);
+    ok.onclick = () => run(ok, "…", async () => {
+      if (rand.some(x => x.tarih === r.tarih && x.saat === r.saat && x.durum === "onaylandi")) return show("Bu saat zaten dolu.");
+      const b = writeBatch(db); b.update(doc(db, "randevular", r.id), { durum: "onaylandi", yanit: yi.value.trim() });
+      rand.filter(x => x.id !== r.id && x.tarih === r.tarih && x.saat === r.saat && x.durum === "bekliyor").forEach(x => { b.update(doc(db, "randevular", x.id), { durum: "reddedildi", yanit: "Bu saat başka bir görüşme için ayrıldı." }); x.durum = "reddedildi"; });
+      await b.commit(); r.durum = "onaylandi"; await syncDolu(r.tarih); show("Randevu onaylandı.", true); draw(); });
+    no.onclick = () => run(no, "…", async () => { await updateDoc(doc(db, "randevular", r.id), { durum: "reddedildi", yanit: yi.value.trim() }); r.durum = "reddedildi"; draw(); });
+    acts.append(ok, no); c.append(acts); parts.push(c);
+  });
+  const up = rand.filter(x => x.durum === "onaylandi" && !past(x.tarih, x.saat)).sort((a, b) => (a.tarih + a.saat).localeCompare(b.tarih + b.saat));
+  parts.push(el("h2", "s", "Yaklaşan görüşmeler"));
+  if (!up.length) parts.push(empty("Yaklaşan görüşme yok."));
+  up.forEach(r => { const c = el("div", "gor"); c.append(el("b", "", fmtL(r.tarih) + " · " + r.saat), el("p", "", r.tur === "mesgul" ? "Meşgul: " + r.baslik : r.ogrenciAd + (r.not ? " · " + r.not : ""))); parts.push(c); });
+  $("app").replaceChildren(...parts);
+}
+
+/* ===================== ÖĞRENCİ ===================== */
+async function initS() {
+  try {
+    ogrt = (await getDocs(query(collection(db, "ogretmenler"), where("okulId", "==", me.okulId)))).docs.map(d => ({ uid: d.id, ...d.data() }));
+    rand = (await getDocs(query(collection(db, "randevular"), where("ogrenci", "==", me.uid)))).docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (e) { show("Veriler okunamadı. Firestore kurallarını güncellediğinden emin ol. (" + (e.code || e.message) + ")"); }
+  if (ogrt.length === 1) await pick(ogrt[0].uid); else draw();
+}
+async function pick(uid) {
+  tSel = uid; sel = null; tmpl = {}; dolu = {};
+  try { const t = await getDoc(doc(db, "musaitlik", uid)); tmpl = t.exists() ? t.data().saatler || {} : {}; } catch (_) {}
+  try { (await getDocs(query(collection(db, "dolu"), where("ogretmen", "==", uid), where("okulId", "==", me.okulId)))).forEach(d => dolu[d.data().tarih] = d.data().saatler || []); } catch (_) {}
+  draw();
+}
+const slotS = (d, di, h) => {
+  if (past(d, h)) return { k: "gecmis", t: "" };
+  const m = rand.find(x => x.ogretmen === tSel && x.tarih === d && x.saat === h && (x.durum === "bekliyor" || x.durum === "onaylandi"));
+  if (m) return { k: "benim", t: m.durum === "onaylandi" ? "Randevun" : "Talebin" };
+  if ((dolu[d] || []).includes(h)) return { k: "dolu", t: "Dolu" };
+  return (tmpl[di] || []).includes(h) ? { k: "musait", t: "Müsait" } : { k: "kapali", t: "" };
+};
+function drawS() {
+  const parts = [], tw = el("div", "wk");
+  if (!ogrt.length) return $("app").replaceChildren(empty("Okulunda henüz profilini oluşturmuş rehber öğretmen yok."));
+  parts.push(el("p", "hint", "Rehber öğretmeninin müsait saatlerinden birini seçip randevu talep edebilirsin. Öğretmenin onaylayınca randevun kesinleşir."));
+  ogrt.forEach(o => { const b = el("button", "chip", o.ad); b.type = "button"; b.setAttribute("aria-pressed", String(tSel === o.uid)); b.onclick = () => pick(o.uid); tw.append(b); });
+  parts.push(el("small", "hint", "Rehber öğretmen seç"), tw);
+  if (tSel) {
+    parts.push(weekBar(), legend([["#e3eedf", "Müsait"], ["#d8d6cb", "Dolu"], ["#1d3a2f", "Senin talebin / randevun"]]));
+    if (!Object.values(tmpl).some(a => a.length)) parts.push(empty("Bu öğretmen henüz müsait saat girmedi. Sohbet bölümünden yazabilirsin."));
+    else parts.push(grid(slotS, {}));
+    if (sel && sel.s.k === "musait") {
+      const p = el("div", "gor"), ta = el("textarea"), go = el("button", "btn sm", "Randevu talep et"); ta.rows = 2; ta.maxLength = 200; ta.placeholder = "Ne hakkında konuşmak istersin? (isteğe bağlı)"; go.type = "button"; go.style.marginTop = "10px";
+      go.onclick = () => run(go, "Gönderiliyor…", async () => {
+        const d = { okulId: me.okulId, ogretmen: tSel, ogretmenAd: (ogrt.find(o => o.uid === tSel) || {}).ad || "", ogrenci: me.uid, ogrenciAd: me.takmaAd ? me.ad + " " + me.soyad : me.ad + " " + me.soyad, sinif: me.sinif + "-" + me.sube, tur: "randevu", not: ta.value.trim(), tarih: sel.date, saat: sel.saat, durum: "bekliyor", olusturma: serverTimestamp() };
+        const r = await addDoc(collection(db, "randevular"), d); rand.push({ id: r.id, ...d }); sel = null; show("Talebin rehber öğretmenine gönderildi.", true); draw(); });
+      p.append(el("h3", "", fmtL(sel.date) + " · " + sel.saat), ta, go); parts.push(p);
+    }
+  }
+  parts.push(el("h2", "s", "Randevularım"));
+  const mine = [...rand].sort((a, b) => (b.tarih + b.saat).localeCompare(a.tarih + a.saat));
+  if (!mine.length) parts.push(empty("Henüz randevu talebin yok."));
+  mine.forEach(r => {
+    const c = el("div", "gor"), [lab, cls] = STAT[r.durum] || ["", "i"], h = el("div"); h.style.cssText = "display:flex;justify-content:space-between;gap:10px;align-items:center";
+    h.append(el("b", "", fmtL(r.tarih) + " · " + r.saat), el("span", "stat " + cls, lab)); c.append(h, el("p", "hint", r.ogretmenAd + (r.not ? " · Notun: " + r.not : "")));
+    if (r.yanit) c.append(el("p", "", "Öğretmen: " + r.yanit));
+    if (r.durum === "bekliyor") { const b = el("button", "btn ghost sm", "Talebi geri çek"); b.type = "button"; b.onclick = () => run(b, "…", async () => { await updateDoc(doc(db, "randevular", r.id), { durum: "iptal" }); r.durum = "iptal"; draw(); }); c.append(b); }
+    else if (r.durum === "onaylandi" && !past(r.tarih, r.saat)) c.append(el("p", "hint", "Değiştirmek istersen Sohbet bölümünden rehber öğretmenine yaz."));
+    parts.push(c);
+  });
+  $("app").replaceChildren(...parts);
+}
+</script></body></html>

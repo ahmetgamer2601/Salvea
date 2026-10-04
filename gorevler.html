@@ -1,0 +1,137 @@
+<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Salvea · Görevler</title>
+<link rel="icon" type="image/png" href="logo.png"><link rel="apple-touch-icon" href="logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="auth.css"><link rel="stylesheet" href="panel.css"></head>
+<body class="solo"><div class="shell" style="max-width:820px">
+<header class="top"><div class="tile"><img src="logo.png" alt="Salvea"></div><div><b id="hi">Yükleniyor…</b><span id="sc"></span></div></header>
+<div class="tabs" id="tabs" hidden></div>
+<div id="app"></div>
+<div class="msg" id="msg" role="alert"></div>
+</div>
+<script src="ortak.js"></script>
+<script type="module">
+import { db } from "./firebase.js";
+import { guard } from "./guard.js";
+import { mountNav } from "./nav.js";
+import { resizeFit } from "./foto.js";
+import { GOREVLER, SEVIYE } from "./gorevler.js";
+import { collection, query, where, getDocs, getDoc, doc, setDoc, addDoc, updateDoc, deleteDoc, writeBatch, increment, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+const me = await guard();
+mountNav(me, "gorev");
+const { $, show } = S;
+const el = (t, c, txt) => { const e = document.createElement(t); if (c) e.className = c; if (txt != null) e.textContent = txt; return e; };
+const empty = t => el("div", "empty", t);
+const teacher = me.role === "teacher";
+const today = () => new Date(Date.now() - new Date().getTimezoneOffset() * 6e4).toISOString().slice(0, 10);
+const fmt = s => new Date(s + "T12:00:00").toLocaleDateString("tr-TR", { day: "numeric", month: "long" });
+const hash = s => [...s].reduce((a, c) => a + c.charCodeAt(0), 0);
+$("sc").textContent = me.okul || "";
+async function run(btn, label, fn) { const o = btn.textContent; btn.disabled = true; btn.textContent = label; try { await fn(); } catch (e) { show("İşlem başarısız: " + (e.code || e.message)); } btn.disabled = false; btn.textContent = o; }
+const q = (c, ...w) => getDocs(query(collection(db, c), ...w.map(x => where(...x)))).then(s => s.docs.map(d => ({ id: d.id, ...d.data() })));
+if (!me.okulId) { $("hi").textContent = "Görevler"; $("app").replaceChildren(empty("Okulun henüz yönetici tarafından eşleştirilmedi. Eşleştirilince görevleri burada göreceksin.")); }
+else teacher ? initT() : initS();
+
+/* ===================== ÖĞRENCİ ===================== */
+async function initS() {
+  $("hi").textContent = "Görevlerim";
+  let team = null, donem = null, atn = [], kn = [];
+  try {
+    team = (await q("takimlar", ["uyeler", "array-contains", me.uid])).find(t => t.aktif);
+    if (!team) return $("app").replaceChildren(empty("Henüz bir takımın yok. Öğretmenin yeni bir dönem başlattığında görevlerin burada görünecek."));
+    donem = (await getDoc(doc(db, "donemler", team.donemId))).data() || {};
+    [atn, kn] = await Promise.all([q("atananGorevler", ["donemId", "==", team.donemId], ["okulId", "==", me.okulId]), q("gorevKanitlari", ["uyeler", "array-contains", me.uid])]);
+    kn = kn.filter(k => k.takimId === team.id);
+  } catch (e) { return show("Veriler okunamadı. Firestore kurallarını güncellediğinden emin ol. (" + (e.code || e.message) + ")"); }
+  $("hi").textContent = team.ad + " · görevler";
+  const draw = () => {
+    const pts = kn.filter(k => k.durum === "onaylandi").reduce((a, k) => a + (k.puan || 0), 0), parts = [], top = el("div", "gor");
+    top.append(el("small", "hint", "Takım puanın"), el("h3", "", pts + " puan"));
+    if (donem.hedefPuan) { const pc = Math.min(100, Math.round((donem.toplamPuan || 0) / donem.hedefPuan * 100)), b = el("div", "pbar"), i = el("i"); i.style.width = pc + "%"; b.append(i);
+      top.append(el("p", "hint", "Okulun ortak hedefi: tüm takımlar birlikte " + (donem.toplamPuan || 0) + " / " + donem.hedefPuan + " puana ulaşıyor. Yarışmıyoruz, birlikte ilerliyoruz."), b); }
+    parts.push(top);
+    if (!atn.length) parts.push(empty("Henüz görev verilmedi. Öğretmenin görev atayınca burada görünecek."));
+    atn.sort((a, b) => (a.bitis || "").localeCompare(b.bitis || "")).forEach(g => {
+      const k = kn.find(x => x.atamaId === g.id), c = el("div", "gor"), meta = el("div", "chips");
+      [SEVIYE[g.seviye], g.sure + " dk", g.puan + " puan", g.bitis ? "Son gün: " + fmt(g.bitis) : ""].filter(Boolean).forEach(x => meta.append(el("i", "", x)));
+      c.append(el("h3", "", g.baslik), meta, el("p", "", g.aciklama));
+      if (g.roller && g.roller.length) { const h = hash(g.id + team.id); c.append(el("small", "hint", "Roller (görev, herkes kendi rolünü yapınca tamamlanır)"));
+        team.uyeler.forEach((u, i) => { const b = (team.uyeBilgi[u] || {}).ad || "Üye", r = g.roller[(i + h) % g.roller.length]; const p = el("p", "", (u === me.uid ? "Sen" : b) + " → " + r); if (u === me.uid) p.style.fontWeight = "600"; p.style.margin = "2px 0"; c.append(p); }); }
+      if (g.kanit) c.append(el("small", "hint", "Kanıt: " + g.kanit));
+      if (k) { const st = k.durum === "onaylandi" ? ["o", "Onaylandı · +" + k.puan + " puan"] : k.durum === "tekrar" ? ["r", "Tekrar istendi"] : ["b", "Onay bekliyor"], s = el("span", "stat " + st[0], st[1]); s.style.marginTop = "10px"; s.style.display = "inline-block";
+        c.append(s); if (k.foto) { const im = el("img", "kanit"); im.src = k.foto; im.alt = "Gönderilen kanıt"; c.append(im); } if (k.yorum) c.append(el("p", "", "Öğretmen: " + k.yorum)); }
+      if (!k || k.durum !== "onaylandi") {
+        const f = el("input"), nt = el("input"), go = el("button", "btn sm", k ? "Yeniden gönder" : "Kanıtı gönder"); f.type = "file"; f.accept = "image/*"; nt.placeholder = "Kısa not (isteğe bağlı)"; nt.maxLength = 150; nt.style.margin = "8px 0"; go.type = "button";
+        const lb = el("label", "", "Kanıt fotoğrafı (yüzler görünmesin)"); lb.style.marginTop = "12px";
+        go.onclick = () => run(go, "Gönderiliyor…", async () => {
+          if (!f.files[0]) { f.classList.add("bad"); return show("Önce bir kanıt fotoğrafı seç."); }
+          const foto = await resizeFit(f.files[0], 900, 0.7);
+          const d = { okulId: me.okulId, atamaId: g.id, takimId: team.id, takimAd: team.ad, donemId: team.donemId, uyeler: team.uyeler, foto, not: nt.value.trim(), gonderen: me.uid, gonderenAd: me.takmaAd || me.ad, durum: "bekliyor", puan: 0, yorum: "", ts: serverTimestamp() };
+          await setDoc(doc(db, "gorevKanitlari", g.id + "_" + team.id), d); kn = kn.filter(x => x.atamaId !== g.id).concat({ id: g.id + "_" + team.id, ...d }); show("Kanıtın öğretmene gönderildi.", true); draw(); });
+        c.append(lb, f, nt, go);
+      }
+      parts.push(c);
+    });
+    $("app").replaceChildren(...parts);
+  };
+  draw();
+}
+
+/* ===================== ÖĞRETMEN ===================== */
+async function initT() {
+  $("hi").textContent = "Görev yönetimi";
+  let donem = null, atn = [], kn = [], tk = [], tab = "onay";
+  try {
+    const dn = await q("donemler", ["okulId", "==", me.okulId]); donem = dn.find(d => d.aktif) || null;
+    [atn, kn, tk] = await Promise.all([q("atananGorevler", ["okulId", "==", me.okulId]), q("gorevKanitlari", ["okulId", "==", me.okulId]), q("takimlar", ["okulId", "==", me.okulId])]);
+  } catch (e) { return show("Veriler okunamadı. Firestore kurallarını güncellediğinden emin ol. (" + (e.code || e.message) + ")"); }
+  const gAt = id => atn.find(a => a.id === id) || {};
+  const tabs = $("tabs"); tabs.hidden = false; tabs.className = "tabs";
+  const draw = () => {
+    const bek = kn.filter(k => k.durum === "bekliyor").sort((a, b) => ((a.ts && a.ts.seconds) || 0) - ((b.ts && b.ts.seconds) || 0));
+    tabs.replaceChildren(...[["onay", "Onay bekleyenler" + (bek.length ? " (" + bek.length + ")" : "")], ["ata", "Görev ata"], ["liste", "Atananlar"]].map(([k, t]) => { const b = el("button", "", t); b.type = "button"; b.setAttribute("aria-selected", String(tab === k)); b.onclick = () => { tab = k; draw(); }; return b; }));
+    const app = $("app");
+    if (tab === "onay") {
+      if (!bek.length) return app.replaceChildren(empty("Onay bekleyen kanıt yok."));
+      app.replaceChildren(...bek.map(k => {
+        const g = gAt(k.atamaId), c = el("div", "gor"), pi = el("input"), yo = el("input"), ok = el("button", "btn sm", "Onayla"), no = el("button", "btn ghost sm", "Tekrar iste"), ac = el("div");
+        pi.type = "number"; pi.min = 0; pi.max = g.puan || 100; pi.value = g.puan || 10; pi.style.width = "90px"; yo.placeholder = "Yorum (tekrar istersen zorunlu)"; yo.maxLength = 150; yo.style.margin = "8px 0"; ok.type = no.type = "button"; ac.style.cssText = "display:flex;gap:8px;align-items:center;flex-wrap:wrap";
+        c.append(el("small", "hint", k.takimAd + " · " + k.gonderenAd), el("h3", "", g.baslik || "Görev"), el("p", "", k.not ? "Not: " + k.not : "Not yok."));
+        if (k.foto) { const im = el("img", "kanit"); im.src = k.foto; im.alt = "Kanıt"; c.append(im); }
+        const pl = el("label", "", "Verilecek puan"); pl.style.margin = "0";
+        ac.append(pl, pi); c.append(yo, ac, (() => { const r = el("div"); r.style.cssText = "display:flex;gap:8px;margin-top:10px"; r.append(ok, no); return r; })());
+        ok.onclick = () => run(ok, "…", async () => { const p = Math.max(0, Math.min(+pi.value || 0, g.puan || 100)), b = writeBatch(db);
+          b.update(doc(db, "gorevKanitlari", k.id), { durum: "onaylandi", puan: p, yorum: yo.value.trim(), onaylayan: me.uid, onayTs: serverTimestamp() }); b.update(doc(db, "donemler", k.donemId), { toplamPuan: increment(p) });
+          await b.commit(); k.durum = "onaylandi"; k.puan = p; show("Onaylandı, takıma " + p + " puan verildi.", true); draw(); });
+        no.onclick = () => run(no, "…", async () => { if (!yo.value.trim()) { yo.classList.add("bad"); return show("Tekrar istiyorsan kısa bir yorum yaz."); }
+          await updateDoc(doc(db, "gorevKanitlari", k.id), { durum: "tekrar", yorum: yo.value.trim() }); k.durum = "tekrar"; draw(); });
+        return c;
+      }));
+    } else if (tab === "ata") {
+      if (!donem) return app.replaceChildren(empty("Görev atamak için önce Takımlar sekmesinden bir dönem yayınlamalısın."));
+      const assign = async (g, bitis) => { await addDoc(collection(db, "atananGorevler"), { okulId: me.okulId, donemId: donem.id, gorevId: g.id || "ozel", baslik: g.baslik, aciklama: g.aciklama, seviye: g.seviye, sure: g.sure, puan: g.puan, roller: g.roller || [], kanit: g.kanit || "", bitis, olusturan: me.uid, olusturma: serverTimestamp() });
+        atn = await q("atananGorevler", ["okulId", "==", me.okulId]); show("“" + g.baslik + "” bu dönemdeki tüm takımlara atandı.", true); draw(); };
+      const parts = [el("p", "hint", "Seçtiğin görev, " + donem.ad + " dönemindeki tüm takımlara atanır. İlk dönemlerde Seviye 1–2 ile başlamanı, sohbet gerektiren görevleri sonraya bırakmanı öneririz.")];
+      const cf = el("details", "doc"); cf.style.margin = "0 0 18px"; cf.append(el("summary", "", "+ Kendi görevini yaz"));
+      const fm = el("div", "txt"), inp = (ph, t = "text") => { const i = el("input"); i.placeholder = ph; i.type = t; i.style.marginBottom = "8px"; return i; };
+      const ad = inp("Görev adı"), ac = el("textarea"), se = el("select"), su = inp("Süre (dakika)", "number"), pu = inp("Puan", "number"), ro = inp("Roller, virgülle ayır (isteğe bağlı): Çizen, Yazan, Renklendiren"), ka = inp("Kanıt olarak ne fotoğraflanacak?"), bi = inp("", "date"), go = el("button", "btn sm", "Görevi ata");
+      ac.rows = 3; ac.placeholder = "Açıklama"; ac.style.marginBottom = "8px"; [1, 2, 3, 4].forEach(n => se.append(new Option(SEVIYE[n], n))); se.style.marginBottom = "8px"; su.value = 20; pu.value = 15; bi.value = donem.bitis; go.type = "button";
+      go.onclick = () => run(go, "…", async () => { if (!ad.value.trim() || !ac.value.trim()) { ad.classList.add("bad"); return show("Görev adı ve açıklama gerekli."); }
+        await assign({ baslik: ad.value.trim(), aciklama: ac.value.trim(), seviye: +se.value, sure: +su.value || 20, puan: +pu.value || 10, roller: ro.value.split(",").map(x => x.trim()).filter(Boolean), kanit: ka.value.trim() }, bi.value || donem.bitis); });
+      fm.append(ad, ac, se, su, pu, ro, ka, el("label", "", "Son gün"), bi, go); cf.append(fm); parts.push(cf);
+      [1, 2, 3, 4].forEach(n => { parts.push(el("h2", "s", SEVIYE[n]));
+        GOREVLER.filter(g => g.seviye === n).forEach(g => { const c = el("div", "gor"), meta = el("div", "chips"), row = el("div", "addrow"), bi2 = el("input"), b = el("button", "btn sm", "Ata");
+          [g.sure + " dk", g.puan + " puan", g.roller.length + " rol"].forEach(x => meta.append(el("i", "", x))); bi2.type = "date"; bi2.value = donem.bitis; bi2.style.maxWidth = "170px"; b.type = "button"; b.onclick = () => run(b, "…", () => assign(g, bi2.value || donem.bitis));
+          row.append(bi2, b); c.append(el("h3", "", g.baslik), meta, el("p", "", g.aciklama), el("small", "hint", "Son gün"), row); parts.push(c); }); });
+      app.replaceChildren(...parts);
+    } else {
+      const list = atn.filter(a => !donem || a.donemId === donem.id), nt = tk.filter(t => donem && t.donemId === donem.id && t.aktif).length;
+      if (!list.length) return app.replaceChildren(empty("Bu dönemde atanmış görev yok. “Görev ata” sekmesinden ekleyebilirsin."));
+      app.replaceChildren(...list.map(a => { const c = el("div", "gor"), ks = kn.filter(k => k.atamaId === a.id), b = el("button", "btn ghost sm", "Görevi kaldır"); b.type = "button";
+        b.onclick = () => run(b, "…", async () => { await deleteDoc(doc(db, "atananGorevler", a.id)); atn = atn.filter(x => x.id !== a.id); draw(); });
+        c.append(el("h3", "", a.baslik), el("p", "hint", SEVIYE[a.seviye] + " · son gün " + (a.bitis ? fmt(a.bitis) : "-")), el("p", "", ks.length + " / " + nt + " takım gönderdi · " + ks.filter(k => k.durum === "onaylandi").length + " onaylandı"), b); return c; }));
+    }
+  };
+  draw();
+}
+</script></body></html>

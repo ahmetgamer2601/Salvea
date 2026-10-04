@@ -1,0 +1,39 @@
+<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Salvea · Hesabın inceleniyor</title><link rel="icon" type="image/png" href="logo.png"><link rel="apple-touch-icon" href="logo.png"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet"><link rel="stylesheet" href="auth.css"></head><body>
+<aside class="brand"><div><h2>Burada herkesin bir yeri var.</h2><p>Salvea, sınıftaki herkesin birbiriyle tanışıp kaynaşması için haftalık karma takımlar kurar.</p></div><img src="logo.png" alt="Salvea logosu"><small style="color:#8fa393">Salvea · Okul rehberlik platformu</small></aside>
+<main><div class="card">
+<span class="live">Canlı takip açık</span>
+<h1 id="bh">Hesabın inceleniyor</h1>
+<p class="sub" id="bs">Öğretmen hesapları öğrenci verilerine eriştiği için tek tek elle kontrol edilir. Onaylandığında bu sayfa kendiliğinden açılır; sayfayı kapatıp sonra tekrar giriş yapabilirsin.</p>
+<dl class="who"><dt>Ad soyad</dt><dd id="wn">…</dd><dt>E-posta</dt><dd id="wm">…</dd><dt>Okul</dt><dd id="wo">…</dd><dt>Branş</dt><dd id="wb">…</dd></dl>
+<ol class="steps" id="st">
+<li class="done"><div class="dot">✓</div><div><b>Kayıt alındı</b><span>Bilgilerin ve onayların güvenle kaydedildi.</span></div></li>
+<li class="now"><div class="dot">2</div><div><b>Bilgilerin kontrol ediliyor</b><span>Okul ve öğretmen bilgilerinin doğruluğuna bakılıyor.</span></div></li>
+<li><div class="dot">3</div><div><b>Panelin açılacak</b><span>Öğrenci takımlarını ve görevleri yönetebileceksin.</span></div></li>
+</ol>
+<details class="doc" id="dMail" style="margin:0 0 6px"><summary>E-posta adresimi değiştir</summary><div class="txt" id="mailBox"></div></details>
+<div class="msg" id="msg" role="status"></div>
+<div class="stack"><button class="btn ghost" id="out" type="button">Çıkış yap</button></div>
+<p class="foot">Bilgilerini yanlış girdiysen çıkış yapıp yeni bir hesap açabilirsin.</p>
+</div></main>
+<script src="ortak.js"></script>
+<script type="module">
+import { auth, db } from "./firebase.js";
+import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+import { mountEmail } from "./eposta.js";
+import { doc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+const { $, show } = S; let un = null;
+onAuthStateChanged(auth, u => {
+  if (!u) return location.replace("index.html");
+  $("wm").textContent = u.email;
+  if (un) return;
+  mountEmail($("mailBox"), u.uid);
+  un = onSnapshot(doc(db, "users", u.uid), s => {
+    const d = s.data(); if (!d) return;
+    $("wn").textContent = d.ad + " " + d.soyad; $("wo").textContent = d.okul; $("wb").textContent = d.brans || "-";
+    if (d.durum === "reddedildi") { $("bh").textContent = "Başvurun onaylanmadı"; $("bs").textContent = "Bilgilerini kontrol edip doğru okul ve e-posta ile yeniden kayıt olabilirsin. Bir yanlışlık olduğunu düşünüyorsan okul yöneticinle iletişime geç."; $("st").hidden = true; return; }
+    if (d.role !== "teacher") return location.replace("student.html");
+    if (d.onayli === true) location.replace("teacher.html");
+  }, () => show("Hesap bilgilerin okunamadı. Bağlantını kontrol edip sayfayı yenile."));
+});
+$("out").onclick = async () => { await signOut(auth); location.replace("index.html"); };
+</script></body></html>

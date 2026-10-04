@@ -1,0 +1,10 @@
+export const ILGILER = ["Müzik", "Kitap", "Film ve dizi", "Dijital oyunlar", "Masa oyunları", "Satranç", "Futbol", "Basketbol", "Voleybol", "Yüzme", "Resim", "Fotoğraf", "Yazı ve şiir", "Bilim", "Kodlama", "Doğa", "Hayvanlar", "Yemek yapmak", "Dans", "Tiyatro"];
+export const AKTIVITELER = ["Masa oyunu oynamak", "Afiş veya poster tasarlamak", "Bulmaca çözmek", "Spor yapmak", "Kitap okumak", "Müzik dinlemek veya çalmak", "Resim yapmak", "Fotoğraf çekmek", "Bilim deneyi yapmak", "Yürüyüşe çıkmak", "Kısa video çekmek"];
+export const ISIMLER = ["Çınar", "Lale", "Bulut", "Nehir", "Zeytin", "Kiraz", "Papatya", "Rüzgâr", "Deniz", "Yıldız", "Toros", "Ege", "Kayın", "Şelale", "Nergis", "Pınar", "Meşe", "Gökkuşağı", "Akasya", "Menekşe", "Fidan", "Ilgaz", "Sedir", "Defne", "Harman", "Çağla", "Ada", "Vadi", "Orman", "Güneş"];
+export const SORULAR = ["Bu hafta seni en çok güldüren şey neydi?", "Bir gün istediğin her yere gidebilsen nereye giderdin?", "En sevdiğin yemek ne ve neden?", "Bir süper gücün olsa ne olmasını isterdin?", "En son izlediğin ya da okuduğun güzel şey neydi?", "Hafta sonu en çok ne yapmaktan keyif alırsın?", "Çocukken en sevdiğin oyun hangisiydi?", "Bir hayvan olsan hangisi olurdun?", "Seni rahatlatan bir şarkı var mı?", "Yeni öğrenmek istediğin bir şey ne?", "Takımımızın adı için bir fikrin var mı?", "Bu görevde hangi işi üstlenmek isterdin?"];
+export function isoWeek(date) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())), n = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - n);
+  const w = Math.ceil(((d - new Date(Date.UTC(d.getUTCFullYear(), 0, 1))) / 864e5 + 1) / 7);
+  return d.getUTCFullYear() + "-H" + String(w).padStart(2, "0");
+}

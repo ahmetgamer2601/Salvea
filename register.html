@@ -1,0 +1,229 @@
+<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Salvea · Kayıt ol</title><link rel="icon" type="image/png" href="logo.png"><link rel="apple-touch-icon" href="logo.png"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet"><link rel="stylesheet" href="auth.css"></head><body>
+<aside class="brand"><div><h2>Burada herkesin bir yeri var.</h2><p>Salvea, sınıftaki herkesin birbiriyle tanışıp kaynaşması için haftalık karma takımlar kurar.</p></div><img src="logo.png" alt="Salvea logosu"><small style="color:#8fa393">Salvea · Okul rehberlik platformu</small></aside>
+<main class="top"><div class="card wide">
+<div id="top"><h1>Salvea'ya katıl</h1><p class="sub">Hesabını oluştur, takımını ve görevlerini görmeye başla.</p>
+<div class="roles" role="group" aria-label="Hesap türü">
+<button type="button" data-role="student" aria-pressed="true"><b>Öğrenciyim</b><span>Takıma katıl, görev yap</span></button>
+<button type="button" data-role="teacher" aria-pressed="false"><b>PDR öğretmeniyim</b><span>Okulumu yönetirim</span></button></div></div>
+<form id="f" novalidate>
+<div class="grid">
+<div class="f"><label for="ad">Ad</label><input id="ad" autocomplete="given-name"></div>
+<div class="f"><label for="soyad">Soyad</label><input id="soyad" autocomplete="family-name"></div>
+<div class="f full"><label for="email">E-posta</label><input id="email" type="email" autocomplete="email"><small class="hint">Gerçek adresini yaz. Geçersiz görünen adresler için senden güncelleme isteyebiliriz.</small></div>
+<div class="f full"><label for="pw">Şifre</label><div class="pw"><input id="pw" type="password" autocomplete="new-password"><button type="button" data-eye="pw,pw2">Göster</button></div>
+<div class="meter"><i></i><i></i><i></i><i></i></div><small class="hint">En az 8 karakter. Büyük harf, rakam ve sembol eklersen güçlenir.</small></div>
+<div class="f full"><label for="pw2">Şifre tekrar</label><input id="pw2" type="password" autocomplete="new-password"></div>
+<div class="f full"><label for="okul">Okul</label><input id="okul" autocomplete="off" placeholder="Okulunun adını veya kısaltmasını yaz"><div id="sug" class="sug" hidden></div><small class="hint" id="okulHint">Kısaltma yazsan da (örn. cmsbl) okulunu bulmaya çalışırız.</small></div>
+</div>
+<div id="stu" class="grid">
+<div class="f"><label for="sinif">Sınıf</label><select id="sinif"><option value="">Seç</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option><option>11</option><option>12</option></select></div>
+<div class="f"><label for="sube">Şube</label><input id="sube" maxlength="2" placeholder="A"></div>
+<div class="f"><label for="dogum">Doğum tarihi</label><input id="dogum" type="date"></div>
+<div class="f"><label for="nick">Takma ad (isteğe bağlı)</label><input id="nick" maxlength="20"><small class="hint">Takım arkadaşların bunu görür.</small></div>
+<div class="f full"><label for="veli">Veli e-postası</label><input id="veli" type="email"></div>
+</div>
+<div id="tea" class="grid" hidden>
+<div class="f full"><label for="brans">Branş</label><select id="brans"><option>Psikolojik Danışman / Rehber Öğretmen</option><option>Sınıf Rehber Öğretmeni</option><option>Diğer</option></select>
+<small class="hint">Öğretmen hesapları kontrol edildikten sonra açılır. Bu sırada bekleme ekranında kalırsın.</small></div>
+</div>
+
+<h3 class="sect">Onaylar</h3>
+<label class="chk"><input type="checkbox" id="kvkk"><span><button type="button" class="link" data-doc="dKvkk">KVKK Aydınlatma Metni</button>'ni okudum ve anladım.</span></label>
+<details class="doc" id="dKvkk"><summary>Metni oku</summary><div class="txt">
+<p><b>Kişisel Verilerin Korunması Hakkında Aydınlatma Metni</b></p>
+<p>6698 sayılı Kişisel Verilerin Korunması Kanunu'nun (KVKK) 10. maddesi ve Aydınlatma Yükümlülüğünün Yerine Getirilmesinde Uyulacak Usul ve Esaslar Hakkında Tebliğ uyarınca, kişisel verilerinizin hangi amaçla, nasıl ve hangi hukuki sebeple işlendiğini sizlere bildirmek isteriz.</p>
+<h4>1. Veri sorumlusu</h4>
+<p>Veri sorumlusu, kullanıcının kayıtlı olduğu eğitim kurumu ile Salvea platformunu geliştiren ve işleten proje ekibidir.</p>
+<h4>2. İşlenen kişisel veriler</h4>
+<ul>
+<li><b>Kimlik:</b> ad, soyad, takma ad, doğum tarihi</li>
+<li><b>İletişim:</b> e-posta adresi, veli e-posta adresi</li>
+<li><b>Eğitim:</b> okul, sınıf, şube; öğretmenler için branş</li>
+<li><b>İşlem güvenliği:</b> hesap oluşturma ve giriş kayıtları. Şifreniz şifrelenerek saklanır, platform yöneticileri dahil kimse göremez.</li>
+<li><b>Kullanım:</b> takım üyeliği, görev katılımı, puanlar, yüklenen etkinlik görselleri</li>
+<li><b>Profil:</b> kısa tanıtım, ilgi alanları, takım arkadaşlarıyla paylaşılan ilginç bir bilgi ve isteğe bağlı profil fotoğrafı. Fotoğrafı ve tanıtım yazısını yalnızca rehber öğretmenler görür; ilgi alanları ve ilginç bilgi takım arkadaşlarıyla paylaşılır.</li>
+<li><b>Duygusal iyi oluş:</b> haftalık duygu durumu puanları, iyi oluş anketi ve etkinlik arkadaşı tercihi yanıtları. Bu veriler psikolojik nitelik taşıyabileceğinden özel nitelikli veri gibi korunur.</li>
+</ul>
+<h4>3. İşleme amaçları</h4>
+<ul>
+<li>Hesabınızı oluşturmak ve kimliğinizi doğrulamak</li>
+<li>Sınıf içi sosyal uyumu desteklemek ve karma etkinlik takımları oluşturmak</li>
+<li>Rehber öğretmenin anket, gözlem ve platform verilerini değerlendirerek öğrencilere uygun destek sunmasını sağlamak</li>
+<li>Görevlerin tamamlanmasını takip etmek ve puanlamak</li>
+<li>Platformun güvenliğini sağlamak ve kötüye kullanımı önlemek</li>
+<li>Veli bilgilendirmesi yapmak</li>
+</ul>
+<h4>4. Hukuki sebep</h4>
+<p>Verileriniz KVKK'nın 5/1. maddesi uyarınca açık rızanıza, platformun güvenliği bakımından 5/2-f maddesindeki meşru menfaate dayanılarak işlenir. Duygusal iyi oluşa ilişkin veriler KVKK'nın 6/2. maddesi uyarınca ayrıca alınan açık rızanıza dayanır. 18 yaşından küçük kullanıcılar için velinin onayı gerekir.</p>
+<h4>5. Toplama yöntemi</h4>
+<p>Verileriniz kayıt formu, platformdaki anketler ve görevler aracılığıyla elektronik ortamda toplanır.</p>
+<h4>6. Verilere kimler erişir ve kimlere aktarılır?</h4>
+<ul>
+<li>Verilerinize yalnızca yetkilendirilmiş rehber öğretmen erişir. Öğrenciler birbirlerinin bilgilerini, puanlarını ve anket yanıtlarını göremez; takım arkadaşları yalnızca ad veya takma adı görür.</li>
+<li>Veriler, Google LLC'nin Firebase bulut altyapısında barındırılır. Sunucular yurt dışında bulunabilir ve bu aktarım KVKK'nın 9. maddesi kapsamında açık rızanıza dayanır.</li>
+<li>Verileriniz, yasal bir zorunluluk olmadıkça reklam, pazarlama veya başka bir amaçla üçüncü kişilerle paylaşılmaz ve satılmaz.</li>
+</ul>
+<h4>7. Saklama süresi</h4>
+<p>Verileriniz hesabınız aktif olduğu sürece ve ilgili eğitim-öğretim yılının bitiminden sonra en geç bir yıl boyunca saklanır. Süre dolduğunda veya rızanızı geri çektiğinizde verileriniz silinir ya da anonim hale getirilir.</p>
+<h4>8. Güvenlik tedbirleri</h4>
+<p>Veriler erişim kuralları, kimlik doğrulama ve şifreli bağlantı ile korunur. Rehber öğretmen hesapları, platform yöneticisi tarafından tek tek kontrol edilip onaylandıktan sonra açılır.</p>
+<h4>9. Haklarınız</h4>
+<p>KVKK'nın 11. maddesi uyarınca şu haklara sahipsiniz:</p>
+<ul>
+<li>Kişisel verilerinizin işlenip işlenmediğini öğrenme ve işlenmişse bilgi talep etme</li>
+<li>İşlenme amacını ve amacına uygun kullanılıp kullanılmadığını öğrenme</li>
+<li>Yurt içinde veya yurt dışında aktarıldığı kişileri bilme</li>
+<li>Eksik veya yanlış işlenmişse düzeltilmesini isteme</li>
+<li>KVKK'nın 7. maddesindeki şartlar çerçevesinde silinmesini veya yok edilmesini isteme</li>
+<li>İşlemeye ve aktarıma ilişkin düzeltme ve silme işlemlerinin aktarıldığı kişilere bildirilmesini isteme</li>
+<li>Otomatik sistemlerle analiz edilmesi sonucu aleyhinize bir sonuç çıkmasına itiraz etme</li>
+<li>Kanuna aykırı işleme nedeniyle zarara uğramanız halinde zararın giderilmesini talep etme</li>
+</ul>
+<h4>10. Başvuru yöntemi</h4>
+<p>Haklarınızı kullanmak için okulunuzun rehberlik servisine veya platform yöneticisine yazılı olarak başvurabilirsiniz. Başvurular en geç 30 gün içinde ücretsiz olarak sonuçlandırılır. Ayrıca Kişisel Verileri Koruma Kurulu'na şikâyette bulunma hakkınız saklıdır.</p>
+</div></details>
+
+<label class="chk"><input type="checkbox" id="riza"><span>Sosyal uyum desteği için verilerimin işlenmesine <button type="button" class="link" data-doc="dRiza">açık rıza</button> veriyorum.</span></label>
+<details class="doc" id="dRiza"><summary>Metni oku</summary><div class="txt">
+<p><b>Açık Rıza Beyanı</b></p>
+<p>Salvea platformuna ilişkin Aydınlatma Metni'ni okudum ve anladım. Aşağıdaki konularda özgür iradeyle, bilgilendirilmiş olarak açık rıza veriyorum:</p>
+<ul>
+<li>Ad, soyad, takma ad, doğum tarihi, e-posta, okul, sınıf ve şube bilgilerimin sosyal uyum desteği ve rehberlik hizmeti amacıyla işlenmesine</li>
+<li>Haftalık duygu durumu puanlarımın, iyi oluş anketi ve etkinlik arkadaşı tercihi yanıtlarımın, psikolojik nitelik taşıyabileceğini bilerek, rehber öğretmen tarafından değerlendirilmesine</li>
+<li>Rehber öğretmenin bu verilere ve gözlemlerine dayanarak etkinlik takımlarını oluşturmasına ve gerekli gördüğünde benimle birebir görüşme planlamasına</li>
+<li>Profilimde paylaştığım tanıtım, ilgi alanı ve isteğe bağlı fotoğrafımın rehber öğretmenler tarafından görülmesine; ilgi alanlarımın ve ilginç bilgimin takım arkadaşlarımla paylaşılmasına</li>
+<li>Görev kanıtı olarak yüklediğim etkinlik görsellerinin platformda saklanmasına</li>
+<li>Verilerimin Google Firebase altyapısında barındırılmasına ve bu nedenle yurt dışına aktarılabilmesine</li>
+</ul>
+<p>Rızamı dilediğim zaman, gerekçe göstermeden geri çekebileceğimi biliyorum. Bunun için okulun rehberlik servisine veya platform yöneticisine başvurmam yeterlidir. Rızanın geri çekilmesi, geri çekilene kadar yapılan işlemlerin hukuka uygunluğunu etkilemez. Rıza vermemem halinde Salvea hizmetinden yararlanamayacağımı, ancak bunun okul eğitimimi ve okuldaki haklarımı etkilemeyeceğini anlıyorum.</p>
+<p>18 yaşından küçük kullanıcılar için, bu beyan velinin bilgisi ve onayıyla verilir.</p>
+</div></details>
+
+<label class="chk" id="vl"><input type="checkbox" id="veliOnay"><span>18 yaşından küçüğüm; velimin bu kaydı bildiğini ve onayladığını beyan ederim.</span></label>
+<div style="height:8px"></div>
+<label class="chk"><input type="checkbox" id="kosul"><span><button type="button" class="link" data-doc="dKosul">Kullanım koşullarını</button> kabul ediyorum.</span></label>
+<details class="doc" id="dKosul"><summary>Metni oku</summary><div class="txt">
+<p><b>Salvea Kullanım Koşulları</b></p>
+<h4>1. Amaç</h4>
+<p>Salvea, okullarda öğrencilerin birbiriyle tanışıp kaynaşmasını desteklemek için hazırlanmış bir etkinlik ve rehberlik platformudur. Tıbbi veya psikolojik tedavi hizmeti değildir ve bir uzmanın yerine geçmez. Kendinizi veya başkasını tehlikede hissediyorsanız hemen 112'yi arayın ve okul yönetimine, rehber öğretmeninize haber verin.</p>
+<h4>2. Hesap</h4>
+<ul>
+<li>Kayıt sırasında verdiğiniz bilgilerin doğru ve güncel olması gerekir.</li>
+<li>Hesabınız kişiseldir. Şifrenizi kimseyle paylaşmayın, başkasının hesabını kullanmayın.</li>
+<li>Rehber öğretmen hesapları, kontrol edildikten sonra açılır. Bilgilerin doğrulanamaması halinde başvuru reddedilebilir.</li>
+</ul>
+<h4>3. Kullanım kuralları</h4>
+<ul>
+<li>Diğer kullanıcılara saygılı davranılır. Alay, tehdit, hakaret, dışlama ve taciz yasaktır.</li>
+<li>Görev kanıtı olarak yüz fotoğrafı değil, etkinliği gösteren görseller (masa oyunu, afiş, çalışma gibi) yüklenir. Başkasının izni olmadan onun görüntüsü yüklenemez.</li>
+<li>Uygunsuz, yasa dışı veya başkasının haklarını ihlal eden içerik paylaşılamaz.</li>
+<li>Platformun işleyişini bozacak, sistemi veya başkalarının verilerini hedef alacak girişimlerde bulunulamaz.</li>
+<li>Görevler dürüstçe tamamlanır; sahte kanıt yüklenemez.</li>
+</ul>
+<h4>4. Rehber öğretmenin rolü</h4>
+<p>Rehber öğretmen, takımları oluşturur, görevleri onaylar ve gerekli gördüğünde kullanıcılarla görüşür. Platformdaki veriler yalnızca rehberlik amacıyla kullanılır.</p>
+<h4>5. Hesabın askıya alınması</h4>
+<p>Bu koşulların ihlali halinde hesap uyarı yapılarak veya doğrudan askıya alınabilir ya da kapatılabilir. Hesabınızın ve verilerinizin silinmesini her zaman talep edebilirsiniz.</p>
+<h4>6. Kişisel veriler</h4>
+<p>Verilerinizin nasıl işlendiği KVKK Aydınlatma Metni ve Açık Rıza Beyanı'nda anlatılmıştır.</p>
+<h4>7. Değişiklikler ve yürürlük</h4>
+<p>Koşullar güncellenebilir. Önemli değişiklikler kullanıcılara duyurulur. Kayıt işlemini tamamlayarak bu koşulları kabul etmiş olursunuz. Koşullara Türkiye Cumhuriyeti hukuku uygulanır.</p>
+</div></details>
+
+<button class="btn" id="go" type="submit">Hesabı oluştur</button>
+<div class="msg" id="msg" role="alert"></div>
+</form>
+<p class="foot" id="rf">Zaten hesabın var mı? <a class="link" href="index.html">Giriş yap</a></p>
+<section id="done" hidden>
+<span class="live">Kayıt tamamlandı</span>
+<h1 id="dt"></h1><p class="sub" id="dp"></p>
+<div class="stack"><a class="btn" id="dgo" href="#" style="display:block;text-align:center;text-decoration:none">Devam et</a></div>
+<p class="foot">E-postana bir doğrulama bağlantısı gönderdik. Gelmediyse spam klasörüne de bak.</p>
+</section>
+</div></main>
+<script src="ortak.js"></script>
+<script>
+(function () {
+  const $ = S.$; let role = 'student';
+  document.querySelectorAll('.roles button').forEach(b => b.addEventListener('click', () => {
+    role = b.dataset.role;
+    document.querySelectorAll('.roles button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    $('stu').hidden = $('vl').hidden = role !== 'student';
+    $('tea').hidden = role !== 'teacher';
+  }));
+  window.salveaRole = () => role;
+  const score = p => [p.length >= 8, /[a-z]/.test(p) && /[A-Z]/.test(p), /\d/.test(p), /[^A-Za-z0-9]/.test(p) || p.length >= 12].filter(Boolean).length;
+  $('pw').addEventListener('input', () => {
+    const s = score($('pw').value), c = ['', '#b5533f', '#c9a23c', '#7d9b84', '#1d3a2f'][s];
+    document.querySelectorAll('.meter i').forEach((i, k) => i.style.background = k < s ? c : '');
+  });
+  $('f').addEventListener('submit', e => { e.preventDefault(); window.salveaRegister ? window.salveaRegister() : S.show('Sistem bağlantısı kurulamadı. Sayfayı sunucu üzerinden aç (Live Server).'); });
+})();
+</script>
+<script type="module">
+import { auth, db } from "./firebase.js";
+import { createUserWithEmailAndPassword, updateProfile, sendEmailVerification, setPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+import { bestMatches, autoPick } from "./okul.js";
+import { collection, getDocs, doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+const { $, show, bad } = S;
+let okullar = [], secili = null;
+getDocs(collection(db, "okullar")).then(s => { okullar = s.docs.map(d => ({ id: d.id, ...d.data() })); }).catch(() => {});
+const hint = $("okulHint"), sug = $("sug"), HINT0 = hint.textContent;
+$("okul").addEventListener("input", () => {
+  secili = null; hint.textContent = HINT0; sug.replaceChildren();
+  const val = $("okul").value.trim();
+  const m = val.length >= 2 ? bestMatches(val, okullar).filter(x => x.score >= 0.45).slice(0, 4) : [];
+  sug.hidden = !m.length;
+  m.forEach(x => { const b = document.createElement("button"); b.type = "button"; b.textContent = x.okul.ad;
+    b.onclick = () => { secili = x.okul; $("okul").value = x.okul.ad; sug.hidden = true; hint.textContent = "✓ Okulun eşleşti."; }; sug.append(b); });
+});
+const mailOk = m => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(m);
+const age = d => { const b = new Date(d), n = new Date(); let a = n.getFullYear() - b.getFullYear(); if (n < new Date(n.getFullYear(), b.getMonth(), b.getDate())) a--; return a; };
+const errs = { "auth/email-already-in-use": "Bu e-posta ile zaten bir hesap var.", "auth/invalid-email": "E-posta adresi geçersiz.", "auth/weak-password": "Şifre çok zayıf.", "auth/network-request-failed": "İnternet bağlantını kontrol et.", "auth/operation-not-allowed": "Firebase'de E-posta/Şifre girişi henüz açılmamış." };
+
+window.salveaRegister = async () => {
+  const role = salveaRole(), v = id => $(id).value.trim();
+  if (!v("ad")) return bad("ad", "Adını yaz.");
+  if (!v("soyad")) return bad("soyad", "Soyadını yaz.");
+  if (!mailOk(v("email"))) return bad("email", "Geçerli bir e-posta adresi yaz.");
+  if ($("pw").value.length < 8) return bad("pw", "Şifre en az 8 karakter olmalı.");
+  if ($("pw").value !== $("pw2").value) return bad("pw2", "Şifreler eşleşmiyor.");
+  if (!v("okul")) return bad("okul", "Okulunun adını yaz.");
+  const o = secili || autoPick(v("okul"), okullar);
+  const profile = { role, ad: v("ad"), soyad: v("soyad"), email: v("email"), okul: o ? o.ad : v("okul"), okulYazilan: v("okul"), okulId: o ? o.id : null, onayli: role === "student" };
+  if (role === "student") {
+    if (!v("sinif")) return bad("sinif", "Sınıfını seç.");
+    if (!v("sube")) return bad("sube", "Şubeni yaz.");
+    if (!v("dogum")) return bad("dogum", "Doğum tarihini seç.");
+    const a = age(v("dogum"));
+    if (isNaN(a) || a < 8 || a > 20) return bad("dogum", "Doğum tarihini kontrol et.");
+    if (!mailOk(v("veli"))) return bad("veli", "Geçerli bir veli e-postası yaz.");
+    if (a < 18 && !$("veliOnay").checked) return bad("veliOnay", "18 yaşından küçük öğrenciler için veli onayı gerekli.");
+    Object.assign(profile, { sinif: v("sinif"), sube: v("sube").toUpperCase(), dogum: v("dogum"), takmaAd: v("nick") || v("ad"), veliEposta: v("veli"), veliOnay: a < 18 });
+  } else Object.assign(profile, { brans: $("brans").value });
+  if (!$("kvkk").checked) return bad("kvkk", "Devam etmek için KVKK Aydınlatma Metni'ni onayla.");
+  if (!$("riza").checked) return bad("riza", "Devam etmek için açık rızayı onayla.");
+  if (!$("kosul").checked) return bad("kosul", "Devam etmek için kullanım koşullarını kabul et.");
+
+  $("go").disabled = true; $("go").textContent = "Hesap oluşturuluyor…";
+  try {
+    await setPersistence(auth, browserSessionPersistence);
+    const cred = await createUserWithEmailAndPassword(auth, v("email"), $("pw").value);
+    await updateProfile(cred.user, { displayName: v("ad") + " " + v("soyad") });
+    await setDoc(doc(db, "users", cred.user.uid), { ...profile, riza: { kvkk: true, acikRiza: true, kosul: true, surum: "1.1", tarih: serverTimestamp() }, olusturma: serverTimestamp() });
+    try { await sendEmailVerification(cred.user); } catch (_) {}
+    for (const id of ["top", "f", "rf"]) $(id).hidden = true;
+    const t = role === "teacher";
+    $("dt").textContent = t ? "Başvurun alındı" : "Hoş geldin, " + v("ad");
+    $("dp").textContent = t ? "Öğretmen hesapları öğrenci verilerine erişebildiği için elle kontrol edilir. Onaylandığında panelin açılır; durumu bir sonraki ekrandan canlı takip edebilirsin."
+                            : "Hesabın hazır. Takımını ve görevlerini görmek için devam et.";
+    if (!profile.okulId) $("dp").textContent += " Okulunu listede bulamadık; yönetici eşleştirdiğinde okul bilgin güncellenecek.";
+    $("dgo").href = t ? "bekle.html" : "student.html";
+    $("done").hidden = false; window.scrollTo(0, 0);
+  } catch (err) {
+    if (err.code === "auth/email-already-in-use") bad("email", errs[err.code]);
+    else show(errs[err.code] || "Bir sorun oluştu: " + (err.code || err.message));
+    $("go").disabled = false; $("go").textContent = "Hesabı oluştur";
+  }
+};
+</script></body></html>

@@ -1,0 +1,292 @@
+<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Salvea · Öğretmen paneli</title>
+<link rel="icon" type="image/png" href="logo.png"><link rel="apple-touch-icon" href="logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="auth.css"><link rel="stylesheet" href="panel.css"></head>
+<body class="solo"><div class="shell">
+<header class="top"><div class="tile"><img src="logo.png" alt="Salvea"></div><div><b id="hi">Yükleniyor…</b><span id="sc"></span></div><button class="btn ghost" id="out" type="button">Çıkış yap</button></header>
+<div class="tabs" role="tablist">
+<button role="tab" data-tab="genel" aria-selected="true">Genel bakış</button>
+<button role="tab" data-tab="dikkat" aria-selected="false" id="tDik">Dikkat gerekenler</button>
+<button role="tab" data-tab="ogr" aria-selected="false">Öğrenciler</button>
+<button role="tab" data-tab="takim" aria-selected="false">Takımlar</button>
+<button role="tab" data-tab="profil" aria-selected="false">Profilim</button></div>
+<section id="genel"></section>
+<section id="dikkat" hidden></section>
+<section id="ogr" hidden>
+<div class="tools"><input id="q" type="search" placeholder="Öğrenci ara"><select id="fs"><option value="">Tüm sınıflar</option></select><select id="fp"><option value="">Tüm profiller</option><option value="eksik">Profili eksik</option><option value="tam">Profili tam</option></select></div>
+<div id="list"></div></section>
+<section id="takim" hidden>
+<h2 class="s" style="margin-top:0">Aktif dönem</h2><div id="aktif"></div>
+<h2 class="s">Yeni dönem başlat</h2>
+<p class="hint" style="margin:-4px 0 14px">Önce dönemin adını ve tarih aralığını gir, sonra takımları otomatik ya da elle kur.</p>
+<div class="form d">
+<div class="f"><label for="dAd">Dönem adı</label><input id="dAd" placeholder="Örn. Ekim 1. dönem"></div>
+<div class="f"><label for="dBas">Başlangıç</label><input id="dBas" type="date"></div>
+<div class="f"><label for="dBit">Bitiş</label><input id="dBit" type="date"></div>
+<div class="f"><label for="dBoy">Takım boyutu</label><select id="dBoy"><option value="3">3 kişi</option><option value="4">4 kişi</option></select></div></div>
+<div class="opts"><label class="chk"><input type="checkbox" id="dSin"><span>Sınıf düzeyine göre ayır</span></label><label class="chk"><input type="checkbox" id="dIlg" checked><span>Ortak ilgi alanlarını önceliklendir</span></label><small class="hint" id="dGun"></small></div>
+<h5 style="font-size:.76rem;text-transform:uppercase;letter-spacing:.05em;color:#6d7a72">Takımları nasıl kuralım?</h5>
+<small class="hint">Otomatik: sistem etiketlere ve ilgi alanlarına göre öneri yapar, sonra sen düzenlersin. Elle: boş takımlarla başlarsın, öğrencileri kendin eklersin.</small>
+<div class="bar2" style="margin-top:10px"><button class="btn" id="bAuto" type="button">Otomatik (rastgele) oluştur</button><button class="btn ghost" id="bEl" type="button">Boş başlat, elle kur</button></div>
+<div id="draft" hidden></div>
+<h2 class="s">Geçmiş dönemler</h2><div id="gecmis"></div></section>
+<section id="profil" hidden>
+<p class="hint" style="margin-bottom:16px">Bu bilgiler okulundaki öğrencilere gösterilir; böylece rehber öğretmenlerini tanırlar.</p>
+<div class="pf"><div class="av" id="pav"></div><div><b>Profil fotoğrafı</b><small class="hint">Okulundaki öğrenciler görür.</small>
+<div class="acts"><label class="btn ghost sm filebtn">Fotoğraf seç<input type="file" id="pFile" accept="image/*" hidden></label><button class="btn ghost sm" id="pRm" type="button" hidden>Kaldır</button></div></div></div>
+<div class="grid"><div class="f"><label for="pAd">Görünen ad</label><input id="pAd" maxlength="40"></div><div class="f"><label for="pBr">Unvan / branş</label><input id="pBr" maxlength="60"></div>
+<div class="f full"><label for="pTan">Kendini kısaca tanıt</label><textarea id="pTan" rows="4" maxlength="300" placeholder="Öğrencilerin seni tanıması için birkaç cümle yaz."></textarea><small class="hint"><span id="pc">0</span>/300</small></div></div>
+<button class="btn" id="pSave" type="button" style="width:auto;padding:13px 28px">Profilimi kaydet</button></section>
+<div class="msg" id="msg" role="alert"></div>
+</div>
+<script src="ortak.js"></script>
+<script type="module">
+import { auth, db } from "./firebase.js";
+import { guard } from "./guard.js";
+import { warnBanner } from "./eposta.js";
+import { mountNav } from "./nav.js";
+import { generate, historyOf, takimAdlari } from "./takim.js";
+import { resize, avatar } from "./foto.js";
+import { signOut } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+import { collection, query, where, getDocs, getDoc, doc, setDoc, updateDoc, deleteDoc, writeBatch, Timestamp, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+const me = await guard("teacher");
+warnBanner(me);
+mountNav(me, "home");
+const { $, show } = S;
+const el = (t, c, txt) => { const e = document.createElement(t); if (c) e.className = c; if (txt != null) e.textContent = txt; return e; };
+const empty = t => el("div", "empty", t);
+const TUR = { destek: "Destek bekleyen", kopru: "Sosyal köprü" };
+$("hi").textContent = "Merhaba, " + me.ad; $("sc").textContent = me.okul + (me.brans ? " · " + me.brans : "");
+$("out").onclick = async () => { await signOut(auth); location.replace("index.html"); };
+if (me.admin) { const a = el("a", "btn ghost", "Yönetim paneli"); a.href = "admin.html"; a.style.cssText = "width:auto;padding:10px 18px;font-size:.9rem;text-decoration:none"; $("out").before(a); $("out").style.marginLeft = "0"; }
+document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => document.querySelectorAll(".tabs button").forEach(x => { x.setAttribute("aria-selected", String(x === b)); $(x.dataset.tab).hidden = x !== b; }));
+
+const today = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+const addDays = (s, n) => { const d = new Date(s + "T12:00:00"); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+const fmt = s => new Date(s + "T12:00:00").toLocaleDateString("tr-TR", { day: "numeric", month: "long" });
+const days = (a, b) => Math.round((new Date(b) - new Date(a)) / 864e5) + 1;
+const initials = n => (n || "?").trim().charAt(0).toLocaleUpperCase("tr");
+
+let students = [], byId = {}, labels = {}, profiller = {}, takimlar = [], donemler = [], draft = null, tid = 0, checks = [], yardim = [];
+
+async function load() {
+  if (!me.okulId) { $("genel").replaceChildren(el("div", "note", "Okulun henüz yönetici tarafından eşleştirilmedi. Eşleştirildiğinde okulundaki öğrenciler burada görünür.")); return; }
+  const q = c => getDocs(query(collection(db, c), where("okulId", "==", me.okulId)));
+  try {
+    const [a, lab, pr, tk, dn] = await Promise.all([getDocs(query(collection(db, "users"), where("role", "==", "student"), where("okulId", "==", me.okulId))), q("etiketler"), q("profiller"), q("takimlar"), q("donemler")]);
+    students = a.docs.map(d => ({ uid: d.id, ...d.data() })).sort((x, y) => (x.soyad || "").localeCompare(y.soyad || "", "tr"));
+    byId = Object.fromEntries(students.map(s => [s.uid, s]));
+    labels = {}; lab.forEach(d => labels[d.id] = d.data().tur);
+    profiller = {}; pr.forEach(d => profiller[d.id] = d.data());
+    takimlar = tk.docs.map(d => ({ id: d.id, ...d.data() })); donemler = dn.docs.map(d => ({ id: d.id, ...d.data() })).sort((x, y) => y.baslangic.localeCompare(x.baslangic));
+    const cls = [...new Set(students.map(s => s.sinif + "-" + s.sube))].sort();
+    $("fs").replaceChildren(new Option("Tüm sınıflar", ""), ...cls.map(x => new Option(x, x)));
+    await loadExtra();
+    render();
+  } catch (e) { show("Veriler okunamadı. Firestore kurallarını güncellediğinden emin ol. (" + (e.code || e.message) + ")"); }
+}
+const tagFor = uid => { const l = labels[uid]; if (!l) return null; const t = el("span", "tag " + (l === "destek" ? "d" : "k"), l === "destek" ? "D" : "K"); t.title = TUR[l]; return t; };
+const nm = s => s.ad + " " + s.soyad;
+
+async function loadExtra() {
+  const q = c => getDocs(query(collection(db, c), where("okulId", "==", me.okulId)));
+  try { checks = (await q("checkinler")).docs.map(d => d.data()); } catch (_) { checks = []; }
+  try { yardim = (await q("yardim")).docs.map(d => ({ id: d.id, ...d.data() })); } catch (_) { yardim = []; }
+}
+const hatirlat = ak => { if (!ak) return []; const t = today(); const n = t > ak.bitis ? "Aktif dönemin süresi doldu. Yeni bir dönem kurup yayınlamanın zamanı." : days(t, ak.bitis) <= 3 ? "Dönem " + days(t, ak.bitis) + " gün içinde bitiyor. Yeni takımları hazırlamaya başlayabilirsin." : ""; return n ? [el("p", "note", n)] : []; };
+/* ---------- Genel bakış ---------- */
+function overview() {
+  const d = students.filter(s => labels[s.uid] === "destek").length, k = students.filter(s => labels[s.uid] === "kopru").length;
+  const tamam = students.filter(s => profiller[s.uid] && profiller[s.uid].tamam).length, ak = donemler.find(x => x.aktif);
+  const fact = (n, t) => { const r = el("div", "fact"); r.append(el("b", "", n), el("span", "", t)); return r; };
+  $("genel").replaceChildren(fact(students.length, "kayıtlı öğrenci"), fact(tamam + " / " + students.length, "öğrenci profilini tamamladı"),
+    fact(d + " / " + k, "destek bekleyen / sosyal köprü etiketli"), fact(Math.min(d, Math.floor(k / 2)), "kurulabilir takım (1 destek + 2 köprü)"),
+    fact(ak ? ak.ad : "–", ak ? fmt(ak.baslangic) + " – " + fmt(ak.bitis) + " arası aktif dönem" : "aktif dönem yok"),
+    el("p", "note", "Etiketler yalnızca bu panelde görünür. Öğrenciler kendi ekranlarında etiket veya rol göremez; takım arkadaşlarının yalnızca takma adını ve ilgi alanlarını görür. Profil fotoğrafını öğretmenler görür; öğrenci isterse takım arkadaşlarına da gösterebilir."), ...hatirlat(ak));
+}
+
+/* ---------- Dikkat gerekenler ---------- */
+function dikkat() {
+  const per = {}; checks.forEach(c => (per[c.uid] = per[c.uid] || []).push(c));
+  Object.values(per).forEach(a => a.sort((x, y) => x.hafta.localeCompare(y.hafta)));
+  const inTeam = new Set(takimlar.filter(t => t.aktif).flatMap(t => t.uyeler)), t0 = today(), out = [];
+  students.forEach(s => {
+    const a = per[s.uid] || [], l = a[a.length - 1], p = a[a.length - 2], why = [];
+    if (l) {
+      if (l.yalniz >= 7) why.push("Yalnızlık puanı yüksek (" + l.yalniz + "/10)");
+      if (p && l.yalniz - p.yalniz >= 3) why.push("Yalnızlık puanı arttı (" + p.yalniz + " → " + l.yalniz + ")");
+      if (p && l.ruh <= 2 && p.ruh <= 2) why.push("İki hafta üst üste düşük ruh hali");
+      if (p && l.konusma === "hayir" && p.konusma === "hayir") why.push("İki hafta takım arkadaşlarıyla konuşmadı");
+    }
+    if (inTeam.has(s.uid) && (!l || days(l.gun || t0, t0) > 14)) why.push(l ? "2 haftadır check-in yapmadı" : "Henüz check-in yapmadı");
+    if (why.length) out.push({ s, why });
+  });
+  return out.sort((x, y) => y.why.length - x.why.length);
+}
+function renderDikkat() {
+  const list = dikkat(), yeni = yardim.filter(y => y.durum === "yeni").sort((a, b) => ((b.tarih && b.tarih.seconds) || 0) - ((a.tarih && a.tarih.seconds) || 0));
+  $("tDik").textContent = "Dikkat gerekenler" + (yeni.length + list.length ? " (" + (yeni.length + list.length) + ")" : "");
+  const parts = [el("h2", "s", "Konuşmak isteyenler")];
+  if (!yeni.length) parts.push(empty("Yeni yardım isteği yok."));
+  yeni.forEach(r => { const row = el("div", "row k"), a = el("div"), btn = el("button", "btn sm", "İlgilendim"); btn.type = "button";
+    const when = r.tarih && r.tarih.seconds ? new Date(r.tarih.seconds * 1000).toLocaleDateString("tr-TR", { day: "numeric", month: "long" }) : "";
+    a.append(el("b", "", r.ad), el("small", "", (r.sinif || "") + " · " + when));
+    btn.onclick = async () => { btn.disabled = true; try { await updateDoc(doc(db, "yardim", r.id), { durum: "tamam" }); r.durum = "tamam"; render(); } catch (e) { show("Güncellenemedi: " + (e.code || e.message)); btn.disabled = false; } };
+    row.append(a, el("span", "", r.not || "Not bırakmadı."), btn); parts.push(row); });
+  parts.push(el("h2", "s", "Haftalık check-in’e göre öne çıkanlar"), el("p", "hint", "Bu liste bir tanı değil, görüşme için hatırlatmadır. Öğrenciyle konuşmadan sonuç çıkarma."));
+  if (!list.length) parts.push(empty(checks.length ? "Şu an dikkat gerektiren bir örüntü görünmüyor." : "Henüz check-in cevabı yok. Öğrenciler “Nasılsın?” sekmesinden haftalık cevap verir."));
+  list.forEach(({ s, why }) => { const row = el("div", "row k"), a = el("div"), ch = el("div", "chips"), btn = el("button", "btn ghost sm", "Profili gör"); btn.type = "button";
+    a.append(el("b", "", nm(s)), el("small", "", s.sinif + "-" + s.sube)); why.forEach(x => ch.append(el("i", "", x)));
+    btn.onclick = () => { $("q").value = nm(s); document.querySelector('[data-tab="ogr"]').click(); renderStudents(); };
+    row.append(a, ch, btn); parts.push(row); });
+  const csv = el("button", "btn ghost sm", "Check-in verilerini indir (CSV)"); csv.type = "button"; csv.style.marginTop = "18px";
+  csv.onclick = () => { const rows = [["kod", "sinif", "etiket", "hafta", "ruh_1_5", "yalnizlik_0_10", "konusma"]];
+    checks.forEach(c => { const s = byId[c.uid] || {}; rows.push([c.uid.slice(0, 6), s.sinif || "", labels[c.uid] || "yok", c.hafta, c.ruh, c.yalniz, c.konusma]); });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["\ufeff" + rows.map(r => r.join(",")).join("\n")], { type: "text/csv" })); a.download = "salvea-checkin.csv"; a.click(); };
+  parts.push(csv, el("small", "hint", "Dosyada isim yok; öğrenciler 6 karakterlik bir kodla yer alır."));
+  $("dikkat").replaceChildren(...parts);
+}
+/* ---------- Öğrenciler ---------- */
+async function detail(s, box) {
+  box.replaceChildren(el("small", "", "Yükleniyor…"));
+  let foto = null; try { const f = await getDoc(doc(db, "fotolar", s.uid)); if (f.exists()) foto = f.data().foto; } catch (_) {}
+  const p = profiller[s.uid] || {}, pf = el("div", "pf"), av = el("div", "av");
+  if (foto) { const i = el("img"); i.src = foto; i.alt = ""; av.append(i); } else av.textContent = initials(s.ad);
+  const yas = s.dogum ? new Date().getFullYear() - new Date(s.dogum).getFullYear() : "?";
+  const info = el("div"); info.append(el("b", "", nm(s)), el("small", "hint", s.email), el("small", "hint", "Doğum: " + (s.dogum || "-") + " (~" + yas + " yaş) · Takma ad: " + (s.takmaAd || "-")), el("small", "hint", "Veli e-postası: " + (s.veliEposta || "-") + (s.veliOnay ? " · veli onayı verildi" : "")));
+  pf.append(av, info);
+  const sec = (h, v) => { const w = el("div"); w.append(el("h5", "", h)); if (Array.isArray(v)) { const c = el("div", "chips"); v.forEach(x => c.append(el("i", "on", x))); w.append(v.length ? c : el("span", "", "–")); } else w.append(el("p", "", v || "–")); return w; };
+  box.replaceChildren(pf, ...(p.guncelleme || p.tanitim ? [sec("Kendini tanıtımı", p.tanitim), sec("İlgi alanları", p.ilgiler || []), sec("Birlikte yapmak istedikleri", p.aktiviteler || []), sec("İlginç bir şey", p.bilgi)] : [el("p", "hint", "Bu öğrenci profil bilgisi girmemiş.")]));
+}
+const header = () => { const h = el("div", "row o hd"); ["Öğrenci", "Sınıf", "Takma ad", "Gizli etiket (sadece sen görürsün)", ""].forEach(x => h.append(el("span", "", x))); return h; };
+function renderStudents() {
+  const q = $("q").value.trim().toLocaleLowerCase("tr"), f = $("fs").value, fp = $("fp").value;
+  const rows = students.filter(s => (!f || s.sinif + "-" + s.sube === f) && (!q || (nm(s) + " " + (s.takmaAd || "")).toLocaleLowerCase("tr").includes(q)) && (!fp || (fp === "tam") === !!(profiller[s.uid] && profiller[s.uid].tamam)));
+  if (!rows.length) return $("list").replaceChildren(empty(students.length ? "Aramana uyan öğrenci yok." : "Henüz kayıtlı öğrenci yok."));
+  $("list").replaceChildren(header(), ...rows.map(s => {
+    const w = el("div", "ogw"), r = el("div", "row o"), a = el("div"), n = el("div"), l = el("div"), det = el("div", "det"), tb = el("button", "btn ghost sm", "Profili gör");
+    det.hidden = true; tb.type = "button";
+    a.append(el("b", "", nm(s)), el("small", "", s.email));
+    n.append(el("span", "", s.takmaAd || "-"), el("small", "", profiller[s.uid] && profiller[s.uid].tamam ? "profil tam" : "profil eksik"));
+    const sel = el("select"), ok = el("span", "saved"); sel.setAttribute("aria-label", nm(s) + " etiketi");
+    sel.append(new Option("Etiket yok", ""), new Option(TUR.destek, "destek"), new Option(TUR.kopru, "kopru")); sel.value = labels[s.uid] || "";
+    sel.onchange = async () => {
+      try {
+        if (!sel.value) { await deleteDoc(doc(db, "etiketler", s.uid)); delete labels[s.uid]; }
+        else { await setDoc(doc(db, "etiketler", s.uid), { tur: sel.value, okulId: me.okulId, ogretmen: me.uid, tarih: serverTimestamp() }); labels[s.uid] = sel.value; }
+        ok.textContent = "Kaydedildi"; overview();
+      } catch (e) { ok.textContent = "Kaydedilemedi"; sel.value = labels[s.uid] || ""; }
+    };
+    tb.onclick = () => { det.hidden = !det.hidden; tb.textContent = det.hidden ? "Profili gör" : "Kapat"; if (!det.hidden && !det.childElementCount) detail(s, det); };
+    l.append(sel, ok); r.append(a, el("div", "", s.sinif + "-" + s.sube), n, l, tb); w.append(r, det); return w;
+  }));
+}
+
+/* ---------- Takımlar ---------- */
+function statusText(d) { const t = today(); return t < d.baslangic ? "başlamasına " + days(t, d.baslangic) + " gün var" : t > d.bitis ? "süresi doldu" : days(t, d.bitis) + " gün kaldı"; }
+function teamCard(t, uyeler) {
+  const c = el("div", "team"); c.append(el("small", "hint", "Takım adı"), el("h3", "", t.ad), el("small", "hint", "Takım üyeleri"));
+  uyeler.forEach(uid => { const s = byId[uid]; const r = el("div", "mrow"); r.style.gridTemplateColumns = "1fr"; const sp = el("span", "", s ? nm(s) + " · " + s.sinif + "-" + s.sube : "Silinmiş kullanıcı"); const tg = tagFor(uid); if (tg) sp.append(tg); r.append(sp); c.append(r); });
+  return c;
+}
+function renderAktif() {
+  const d = donemler.find(x => x.aktif), box = $("aktif");
+  if (!d) return box.replaceChildren(empty("Aktif dönem yok. Aşağıdan yeni bir dönem başlatabilirsin."));
+  const ts = takimlar.filter(t => t.donemId === d.id), end = el("button", "btn ghost sm", "Dönemi bitir"); end.type = "button";
+  end.onclick = async () => { end.disabled = true; try { const b = writeBatch(db); b.update(doc(db, "donemler", d.id), { aktif: false }); ts.forEach(t => b.update(doc(db, "takimlar", t.id), { aktif: false })); (await getDocs(query(collection(db, "sohbetler"), where("donemId", "==", d.id), where("tur", "==", "takim"), where("okulId", "==", me.okulId)))).forEach(x => b.update(x.ref, { kapali: true })); await b.commit(); show("Dönem bitirildi.", true); await load(); } catch (e) { show("Bitirilemedi: " + (e.code || e.message)); end.disabled = false; } };
+  const head = el("div"); head.append(el("b", "", "Dönem: " + d.ad), el("p", "hint", fmt(d.baslangic) + " – " + fmt(d.bitis) + " · " + days(d.baslangic, d.bitis) + " gün · " + statusText(d)), end);
+  box.replaceChildren(head, ...ts.map(t => teamCard(t, t.uyeler)));
+}
+function renderGecmis() {
+  const past = donemler.filter(d => !d.aktif);
+  $("gecmis").replaceChildren(...(past.length ? past.map(d => { const r = el("div", "row"); r.style.gridTemplateColumns = "2fr 2fr 1fr"; r.append(el("b", "", d.ad), el("span", "", fmt(d.baslangic) + " – " + fmt(d.bitis)), el("small", "", (d.takimSayisi || 0) + " takım")); return r; }) : [empty("Henüz tamamlanmış dönem yok.")]));
+}
+function setDefaults() { const n = donemler.length + 1; $("dAd").value = $("dAd").value || n + ". dönem"; $("dBas").value = $("dBas").value || today(); $("dBit").value = $("dBit").value || addDays(today(), 13); gunYaz(); }
+function gunYaz() { const a = $("dBas").value, b = $("dBit").value; $("dGun").textContent = a && b && b >= a ? "Süre: " + days(a, b) + " gün" : "Bitiş tarihi başlangıçtan önce olamaz."; }
+$("dBas").onchange = $("dBit").onchange = gunYaz;
+
+function opts() { return { size: +$("dBoy").value, byClass: $("dSin").checked, useInterest: $("dIlg").checked }; }
+function auto(o) {
+  const lists = generate({ students: students.map(s => ({ uid: s.uid, sinif: s.sinif })), labels, interests: Object.fromEntries(Object.entries(profiller).map(([k, v]) => [k, v.ilgiler || []])), history: historyOf(takimlar.map(t => t.uyeler)), ...o });
+  const names = takimAdlari(lists.length);
+  return lists.map((u, i) => ({ id: ++tid, ad: names[i], uyeler: u }));
+}
+function start(isAuto) {
+  if (!students.length) return show("Önce kayıtlı öğrenci olmalı.");
+  if (!$("dAd").value.trim()) return S.bad("dAd", "Dönem adını yaz.");
+  if (!$("dBas").value || !$("dBit").value || $("dBit").value < $("dBas").value) return S.bad("dBit", "Tarih aralığını kontrol et.");
+  const o = opts();
+  draft = { auto: isAuto, o, teams: isAuto ? auto(o) : Array.from({ length: Math.max(1, Math.floor(students.length / o.size)) }, () => ({ id: ++tid, ad: "", uyeler: [] })) };
+  if (!isAuto) { const n = takimAdlari(draft.teams.length); draft.teams.forEach((t, i) => t.ad = n[i]); }
+  renderDraft(); $("draft").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+function renderDraft() {
+  const box = $("draft"); if (!draft) { box.hidden = true; return; } box.hidden = false;
+  const assigned = new Set(draft.teams.flatMap(t => t.uyeler)), pool = students.filter(s => !assigned.has(s.uid));
+  const move = (uid, from, val) => { if (from) from.uyeler = from.uyeler.filter(x => x !== uid); if (val !== "-") draft.teams.find(x => String(x.id) === val).uyeler.push(uid); renderDraft(); };
+  const cards = draft.teams.map(t => {
+    const c = el("div", "team"), h = el("div", "dh"), ni = el("input"), del = el("button", "btn ghost sm", "Takımı sil");
+    ni.value = t.ad; ni.setAttribute("aria-label", "Takım adı"); ni.oninput = () => t.ad = ni.value; del.type = "button"; del.onclick = () => { draft.teams = draft.teams.filter(x => x !== t); renderDraft(); };
+    const dn = t.uyeler.filter(u => labels[u] === "destek").length, kn = t.uyeler.filter(u => labels[u] === "kopru").length;
+    const fl = el("div", "f"), lb = el("label", "", "Takım adı"); lb.htmlFor = ni.id = "tn" + t.id; fl.style.flex = "1"; fl.append(lb, ni); h.style.alignItems = "end"; h.append(fl, del);
+    c.append(h, el("small", "hint", "Takım üyeleri: " + t.uyeler.length + " kişi · " + dn + " destek, " + kn + " köprü" + (dn && !kn ? " · köprü yok!" : "")));
+    t.uyeler.forEach(uid => { const s = byId[uid], r = el("div", "mrow"), sp = el("span", "", nm(s) + " · " + s.sinif + "-" + s.sube), tg = tagFor(uid); if (tg) sp.append(tg);
+      const sel = el("select"); sel.append(new Option("Başka takıma taşı…", ""), new Option("Takımdan çıkar", "-"), ...draft.teams.filter(x => x !== t).map(x => new Option(x.ad || "Adsız takım", String(x.id))));
+      sel.onchange = () => sel.value && move(uid, t, sel.value); r.append(sp, sel); c.append(r); });
+    return c;
+  });
+  const pc = el("div", "team pool"); pc.append(el("h3", "", "Takımı olmayanlar (" + pool.length + ")"));
+  pc.append(el("small", "hint", pool.length ? "Bu öğrencileri sağdaki menüden bir takıma ekle." : "Herkes bir takımda."));
+  pool.forEach(s => { const r = el("div", "mrow"), sp = el("span", "", nm(s) + " · " + s.sinif + "-" + s.sube), tg = tagFor(s.uid); if (tg) sp.append(tg);
+    const sel = el("select"); sel.append(new Option("Takıma ekle…", ""), ...draft.teams.map(x => new Option(x.ad || "Adsız takım", String(x.id)))); sel.onchange = () => sel.value && move(s.uid, null, sel.value); r.append(sp, sel); pc.append(r); });
+  const bar = el("div", "bar2"), mk = (txt, cls, fn) => { const b = el("button", "btn " + cls, txt); b.type = "button"; b.onclick = fn; bar.append(b); return b; };
+  mk("Yayınla", "", publish);
+  mk("Takım ekle", "ghost", () => { draft.teams.push({ id: ++tid, ad: takimAdlari(1, draft.teams.map(t => t.ad))[0], uyeler: [] }); renderDraft(); });
+  mk("Takım adlarını yenile", "ghost", () => { const n = takimAdlari(draft.teams.length); draft.teams.forEach((t, i) => t.ad = n[i]); renderDraft(); });
+  if (draft.auto) mk("Takımları yeniden karıştır", "ghost", () => { draft.teams = auto(draft.o); renderDraft(); });
+  mk("Vazgeç", "ghost", () => { draft = null; renderDraft(); });
+  box.replaceChildren(el("h2", "s", "Taslak takımlar"), el("p", "note", "Nasıl kullanılır: 1) Takım adını istediğin gibi değiştir. 2) Gerekirse bir öğrenciyi “Başka takıma taşı” menüsüyle başka takıma ver. 3) Hazır olunca Yayınla’ya bas. D (destek bekleyen) ve K (sosyal köprü) işaretleri yalnızca sende görünür; öğrenciler kendi takımlarını ve arkadaşlarının takma adlarını görür."), ...cards, pc, bar);
+}
+async function publish() {
+  const ad = $("dAd").value.trim(), bas = $("dBas").value, bit = $("dBit").value, ts = draft.teams.filter(t => t.uyeler.length);
+  if (!ts.length) return show("En az bir dolu takım gerekli.");
+  if (ts.some(t => t.uyeler.length < 2)) return show("Tek kişilik takım var. Birini ekle ya da takımı sil.");
+  if (!ad || !bas || bit < bas) return show("Dönem adı ve tarih aralığını kontrol et.");
+  try {
+    const fotos = {};
+    await Promise.all(ts.flatMap(t => t.uyeler).filter(u => profiller[u] && profiller[u].fotoPaylas).map(async u => { try { const f = await getDoc(doc(db, "fotolar", u)); if (f.exists()) fotos[u] = f.data().foto; } catch (_) {} }));
+    const b = writeBatch(db), dref = doc(collection(db, "donemler"));
+    donemler.filter(d => d.aktif).forEach(d => b.update(doc(db, "donemler", d.id), { aktif: false }));
+    takimlar.filter(t => t.aktif).forEach(t => b.update(doc(db, "takimlar", t.id), { aktif: false }));
+    for (const d of donemler.filter(x => x.aktif)) (await getDocs(query(collection(db, "sohbetler"), where("donemId", "==", d.id), where("tur", "==", "takim"), where("okulId", "==", me.okulId)))).forEach(x => b.update(x.ref, { kapali: true }));
+    b.set(dref, { okulId: me.okulId, ad, baslangic: bas, bitis: bit, aktif: true, takimSayisi: ts.length, toplamPuan: 0, hedefPuan: ts.length * 60, olusturan: me.uid, olusturma: serverTimestamp() });
+    const refs = ts.map(() => doc(collection(db, "takimlar")));
+    ts.forEach(t => b.set(refs[ts.indexOf(t)], { okulId: me.okulId, donemId: dref.id, donemAd: ad, ad: t.ad || "Takım", uyeler: t.uyeler, baslangic: bas, bitis: bit, aktif: true, olusturma: serverTimestamp(),
+      uyeBilgi: Object.fromEntries(t.uyeler.map(u => { const s = byId[u], p = profiller[u] || {}; return [u, { ad: s.takmaAd || s.ad, ilgiler: p.ilgiler || [], aktiviteler: p.aktiviteler || [], bilgi: p.bilgi || "", foto: fotos[u] || null }]; })) }));
+    ts.forEach((t, i) => b.set(doc(db, "sohbetler", "takim_" + refs[i].id), { tur: "takim", okulId: me.okulId, donemId: dref.id, takimId: refs[i].id, ad: (t.ad || "Takım") + " · takım sohbeti", uyeler: [...t.uyeler, me.uid],
+      uyeAd: { ...Object.fromEntries(t.uyeler.map(u => [u, byId[u].takmaAd || byId[u].ad])), [me.uid]: me.ad + " " + me.soyad + " (rehber)" },
+      bitisTs: Timestamp.fromDate(new Date(bit + "T23:59:59")), kapali: false, olusturma: serverTimestamp(), son: null, sonTs: serverTimestamp(), okundu: {}, yaziyor: {}, aktif: {} }));
+    await b.commit(); draft = null; show("Dönem yayınlandı. Öğrenciler takımlarını görebilir.", true); await load();
+  } catch (e) { show("Yayınlanamadı: " + (e.code || e.message)); }
+}
+$("bAuto").onclick = () => start(true); $("bEl").onclick = () => start(false);
+function render() { overview(); renderDikkat(); renderStudents(); renderAktif(); renderGecmis(); setDefaults(); renderDraft(); }
+$("q").oninput = $("fp").onchange = $("fs").onchange = renderStudents;
+/* ---------- Profilim ---------- */
+let mp = {};
+const persist = () => setDoc(doc(db, "ogretmenler", me.uid), { okulId: me.okulId || null, ad: $("pAd").value.trim() || me.ad + " " + me.soyad, brans: $("pBr").value.trim(), tanitim: $("pTan").value.trim(), foto: mp.foto || null, guncelleme: serverTimestamp() });
+async function loadProfil() {
+  try { const s = await getDoc(doc(db, "ogretmenler", me.uid)); if (s.exists()) mp = s.data(); } catch (_) {}
+  $("pAd").value = mp.ad || me.ad + " " + me.soyad; $("pBr").value = mp.brans || me.brans || ""; $("pTan").value = mp.tanitim || ""; $("pc").textContent = $("pTan").value.length;
+  avatar($("pav"), mp.foto, me.ad); $("pRm").hidden = !mp.foto;
+  if (me.okulId && mp.okulId !== me.okulId) persist().catch(() => {});
+}
+$("pTan").oninput = () => $("pc").textContent = $("pTan").value.length;
+$("pSave").onclick = async () => { $("pSave").disabled = true; try { await persist(); show(me.okulId ? "Profilin kaydedildi. Öğrenciler artık görebilir." : "Profilin kaydedildi. Okulun eşleştirildiğinde öğrenciler görebilir.", true); } catch (e) { show("Kaydedilemedi: " + (e.code || e.message)); } $("pSave").disabled = false; };
+$("pFile").onchange = async () => { const f = $("pFile").files[0]; if (!f) return; if (!f.type.startsWith("image/")) return show("Lütfen bir görsel dosyası seç.");
+  try { mp.foto = await resize(f); await persist(); avatar($("pav"), mp.foto, me.ad); $("pRm").hidden = false; show("Fotoğrafın kaydedildi.", true); } catch (e) { mp.foto = null; show("Fotoğraf kaydedilemedi: " + (e.code || e.message)); } $("pFile").value = ""; };
+$("pRm").onclick = async () => { mp.foto = null; try { await persist(); avatar($("pav"), null, me.ad); $("pRm").hidden = true; } catch (e) { show("Silinemedi: " + (e.code || e.message)); } };
+loadProfil();
+load();
+</script></body></html>
