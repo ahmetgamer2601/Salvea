@@ -1,0 +1,175 @@
+<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Salvea · Program</title>
+<link rel="icon" type="image/png" href="logo.png"><link rel="apple-touch-icon" href="logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="auth.css"><link rel="stylesheet" href="panel.css"></head>
+<body class="solo"><div class="shell" style="max-width:860px">
+<header class="top"><div class="tile"><img src="logo.png" alt="Salvea"></div><div><b id="hi">Yükleniyor…</b><span id="sc"></span></div></header>
+<div id="app"></div>
+<div class="msg" id="msg" role="alert"></div>
+</div>
+<script src="ortak.js"></script>
+<script type="module">
+import { db } from "./firebase.js";
+import { guard } from "./guard.js";
+import { mountNav } from "./nav.js";
+import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+const me = await guard();
+mountNav(me, "program");
+const { $, show } = S;
+const el = (t, c, txt) => { const e = document.createElement(t); if (c) e.className = c; if (txt != null) e.textContent = txt; return e; };
+const empty = t => el("div", "empty", t);
+const teacher = me.role === "teacher";
+const GUN = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"], GK = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
+const TURP = { ders: "Ders programı", calisma: "Çalışma programı" };
+const TURS = { ders: "Ders", calisma: "Çalışma", tekrar: "Tekrar", deneme: "Deneme", mola: "Mola" };
+const DERSLER = ["Türkçe", "Edebiyat", "Matematik", "Geometri", "Fizik", "Kimya", "Biyoloji", "Tarih", "Coğrafya", "Felsefe", "İngilizce", "Din Kültürü", "Rehberlik", "Beden Eğitimi", "Görsel Sanatlar", "Müzik", "Genel tekrar", "Soru çözümü", "Deneme sınavı"];
+const todayIdx = (new Date().getDay() + 6) % 7;
+const rid = () => Math.random().toString(36).slice(2, 8);
+const plus = (t, m) => { const [h, mi] = t.split(":").map(Number), x = Math.min(23 * 60 + 59, h * 60 + mi + m); return String(Math.floor(x / 60)).padStart(2, "0") + ":" + String(x % 60).padStart(2, "0"); };
+async function run(btn, label, fn) { const o = btn.textContent; btn.disabled = true; btn.textContent = label; try { await fn(); } catch (e) { show("İşlem başarısız: " + (e.code || e.message)); } btn.disabled = false; btn.textContent = o; }
+const q = (...w) => getDocs(query(collection(db, "programlar"), ...w.map(x => where(...x)))).then(s => s.docs.map(d => ({ id: d.id, ...d.data() })));
+$("sc").textContent = me.okul || "";
+const RULES = "Firestore kurallarına “programlar” bölümünü eklediğinden emin ol.";
+if (!me.okulId) { $("hi").textContent = "Program"; $("app").replaceChildren(empty("Okulun henüz yönetici tarafından eşleştirilmedi. Eşleştirilince programlarını burada göreceksin.")); }
+else teacher ? initT() : initS();
+
+/* ===================== ÖĞRENCİ ===================== */
+async function initS() {
+  $("hi").textContent = "Programım";
+  let list = [];
+  try {
+    const sk = me.sinif + "-" + me.sube;
+    const r = await Promise.all([q(["okulId", "==", me.okulId], ["kapsam", "==", "okul"]), q(["okulId", "==", me.okulId], ["kapsam", "==", "sinif:" + sk]), q(["ogrenciler", "array-contains", me.uid])]);
+    const m = new Map(); r.flat().forEach(p => m.set(p.id, p)); list = [...m.values()].sort((a, b) => (a.tur === b.tur ? a.ad.localeCompare(b.ad, "tr") : a.tur === "ders" ? -1 : 1));
+  } catch (e) { return show("Programlar okunamadı. " + RULES + " (" + (e.code || e.message) + ")"); }
+  const KEY = "salvea_prg_" + me.uid; let done = {}; try { done = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (_) {}
+  const saveDone = () => { try { localStorage.setItem(KEY, JSON.stringify(done)); } catch (_) {} };
+  let day = todayIdx;
+  const draw = () => {
+    const parts = [], chips = el("div", "wk");
+    GK.forEach((g, i) => { const b = el("button", "chip", g + (i === todayIdx ? " •" : "")); b.type = "button"; b.setAttribute("aria-pressed", String(day === i)); b.setAttribute("aria-label", GUN[i]); b.onclick = () => { day = i; draw(); }; chips.append(b); });
+    parts.push(chips);
+    if (!list.length) parts.push(empty("Sana atanmış bir program yok. Rehber öğretmenin ya da koçun program hazırlayınca burada görünecek."));
+    let total = 0, ok = 0;
+    list.forEach(p => {
+      const c = el("div", "gor"), items = (p.satirlar || []).filter(x => x.gun === day).sort((a, b) => a.bas.localeCompare(b.bas));
+      c.append(el("h3", "", p.ad), el("p", "hint", TURP[p.tur] + " · Hazırlayan: " + (p.olusturanAd || "Öğretmen")));
+      if (p.not) c.append(el("p", "", p.not));
+      if (!items.length) c.append(el("p", "hint", GUN[day] + " günü için kayıt yok."));
+      items.forEach(it => {
+        const key = p.id + ":" + it.id, track = ["calisma", "tekrar", "deneme"].includes(it.tur), r = el("label", "prow" + (it.tur === "mola" ? " mola" : "") + (track && done[key] ? " dn" : ""));
+        const t = el("span", "pt", it.bas + "–" + it.bit), m = el("div"), b = el("b", "", it.ders);
+        m.append(b, el("small", "", TURS[it.tur] + (it.konu ? " · " + it.konu : "")));
+        r.append(t, m);
+        if (track) { total++; if (done[key]) ok++; const cb = el("input"); cb.type = "checkbox"; cb.checked = !!done[key]; cb.setAttribute("aria-label", it.ders + " tamamlandı"); cb.onchange = () => { cb.checked ? done[key] = 1 : delete done[key]; saveDone(); draw(); }; r.append(cb); } else r.append(el("span"));
+        c.append(r);
+      });
+      parts.push(c);
+    });
+    if (total) { const w = el("div", "gor"), bar = el("div", "pbar"), i = el("i"); i.style.width = Math.round(ok / total * 100) + "%"; bar.append(i); w.append(el("h3", "", GUN[day] + ": " + ok + " / " + total + " çalışma tamam"), bar); parts.push(w); }
+    $("app").replaceChildren(...parts);
+  };
+  draw();
+}
+
+/* ===================== ÖĞRETMEN / KOÇ ===================== */
+async function initT() {
+  $("hi").textContent = "Ders ve çalışma programları";
+  let list = [], students = [], ed = null, day = 0;
+  try {
+    const [p, s] = await Promise.all([q(["okulId", "==", me.okulId]), getDocs(query(collection(db, "users"), where("role", "==", "student"), where("okulId", "==", me.okulId))).then(r => r.docs.map(d => ({ uid: d.id, ...d.data() })))]);
+    list = p; students = s.sort((a, b) => (a.soyad || "").localeCompare(b.soyad || "", "tr"));
+  } catch (e) { return show("Veriler okunamadı. " + RULES + " (" + (e.code || e.message) + ")"); }
+  const nm = s => s.ad + " " + s.soyad + " (" + s.sinif + "-" + s.sube + ")";
+  const classes = [...new Set(students.map(s => s.sinif + "-" + s.sube))].sort((a, b) => a.localeCompare(b, "tr", { numeric: true }));
+  const kt = p => p.kapsam === "okul" ? "Tüm okul" : p.kapsam.startsWith("sinif:") ? p.kapsam.slice(6) + " sınıfı" : (p.ogrenciler || []).length + " öğrenci";
+  const newEd = () => ({ ad: "", tur: "calisma", k: "okul", sinif: classes[0] || "", uids: [], satirlar: [], not: "" });
+  const toEd = (p, copy) => ({ id: copy ? null : p.id, ad: copy ? p.ad + " (kopya)" : p.ad, tur: p.tur, k: p.kapsam === "okul" ? "okul" : p.kapsam.startsWith("sinif:") ? "sinif" : "kisi", sinif: p.kapsam.startsWith("sinif:") ? p.kapsam.slice(6) : classes[0] || "", uids: [...(p.ogrenciler || [])], satirlar: (p.satirlar || []).map(x => ({ ...x, id: copy ? rid() : x.id })), not: p.not || "" });
+  const draw = () => ed ? drawEd() : drawList();
+
+  function drawList() {
+    const nb = el("button", "btn sm", "+ Yeni program"); nb.type = "button"; nb.onclick = () => { ed = newEd(); day = 0; draw(); };
+    const parts = [el("p", "hint", "Ders programını bir sınıf için, çalışma programını sınıf ya da seçtiğin öğrenciler için hazırlayabilirsin. Öğrenciler kendi ekranında görür ve çalışma satırlarını işaretler."), nb];
+    if (!list.length) parts.push(empty("Henüz program yok. “Yeni program” ile ilkini oluştur."));
+    [...list].sort((a, b) => a.ad.localeCompare(b.ad, "tr")).forEach(p => {
+      const c = el("div", "gor"), ch = el("div", "chips"), ac = el("div", "addrow"), eb = el("button", "btn sm", "Düzenle"), cp = el("button", "btn ghost sm", "Kopyala"), rm = el("button", "btn ghost sm", "Sil");
+      [TURP[p.tur], kt(p), (p.satirlar || []).length + " satır"].forEach(x => ch.append(el("i", "", x)));
+      eb.type = cp.type = rm.type = "button"; eb.onclick = () => { ed = toEd(p); day = 0; draw(); }; cp.onclick = () => { ed = toEd(p, true); day = 0; draw(); };
+      rm.onclick = () => { if (!confirm("“" + p.ad + "” silinsin mi?")) return; run(rm, "…", async () => { await deleteDoc(doc(db, "programlar", p.id)); list = list.filter(x => x.id !== p.id); draw(); }); };
+      ac.append(eb, cp, rm); c.append(el("h3", "", p.ad), ch, ac); parts.push(c);
+    });
+    $("app").replaceChildren(...parts);
+  }
+
+  function drawEd() {
+    const f = ed, parts = [], refs = new Map();
+    const fld = (l, n) => { const w = el("div", "f"); w.append(el("label", "", l), n); return w; };
+    const ad = el("input"); ad.value = f.ad; ad.maxLength = 60; ad.placeholder = "Örn. 9-A ders programı, Ayşe'nin TYT çalışma planı"; ad.oninput = () => f.ad = ad.value;
+    const tu = el("select"); Object.entries(TURP).forEach(([v, t]) => tu.append(new Option(t, v))); tu.value = f.tur; tu.onchange = () => f.tur = tu.value;
+    const kp = el("select"); [["okul", "Tüm okul"], ["sinif", "Bir sınıf"], ["kisi", "Seçtiğim öğrenciler"]].forEach(([v, t]) => kp.append(new Option(t, v))); kp.value = f.k; kp.onchange = () => { f.k = kp.value; draw(); };
+    parts.push(el("h2", "s", f.id ? "Programı düzenle" : "Yeni program"), fld("Program adı", ad), fld("Program türü", tu), fld("Kimler görecek?", kp));
+    if (f.k === "sinif") { const s = el("select"); if (!classes.length) s.append(new Option("Okulda kayıtlı öğrenci yok", "")); classes.forEach(c => s.append(new Option(c + " sınıfı", c))); s.value = f.sinif; s.onchange = () => f.sinif = s.value; parts.push(fld("Sınıf", s)); }
+    if (f.k === "kisi") {
+      const si = el("input"), sel = el("div", "chips sel"), lst = el("div", "chips sel"); si.type = "search"; si.placeholder = "Öğrenci ara (isim ya da sınıf)"; lst.style.marginTop = "8px";
+      const dp = () => {
+        sel.replaceChildren(...f.uids.map(u => { const s = students.find(x => x.uid === u), b = el("button", "chip", (s ? nm(s) : "Öğrenci") + " ✕"); b.type = "button"; b.setAttribute("aria-pressed", "true"); b.onclick = () => { f.uids = f.uids.filter(x => x !== u); dp(); }; return b; }));
+        const k = si.value.trim().toLocaleLowerCase("tr");
+        lst.replaceChildren(...students.filter(s => !f.uids.includes(s.uid) && (!k || nm(s).toLocaleLowerCase("tr").includes(k))).slice(0, 8).map(s => { const b = el("button", "chip", "+ " + nm(s)); b.type = "button"; b.onclick = () => { f.uids.push(s.uid); dp(); }; return b; }));
+      };
+      si.oninput = dp; dp(); const w = el("div", "f"); w.append(el("label", "", "Öğrenciler"), sel, si, lst); parts.push(w);
+    }
+    const no = el("textarea"); no.rows = 2; no.maxLength = 300; no.placeholder = "Öğrencilere kısa not (isteğe bağlı)"; no.value = f.not; no.oninput = () => f.not = no.value; parts.push(fld("Genel not", no));
+    // gün seçici
+    const dc = el("div", "wk"); GK.forEach((g, i) => { const n = f.satirlar.filter(x => x.gun === i).length, b = el("button", "chip", g + (n ? " (" + n + ")" : "")); b.type = "button"; b.setAttribute("aria-pressed", String(day === i)); b.setAttribute("aria-label", GUN[i]); b.onclick = () => { day = i; draw(); }; dc.append(b); });
+    parts.push(el("h2", "s", GUN[day]), dc);
+    const dl = el("datalist"); dl.id = "dl"; DERSLER.forEach(d => dl.append(new Option(d))); parts.push(dl);
+    f.satirlar.filter(r => r.gun === day).sort((a, b) => a.bas.localeCompare(b.bas)).forEach(r => {
+      const w = el("div", "erow"), b1 = el("input"), b2 = el("input"), de = el("input"), ko = el("input"), tp = el("select"), rm = el("button", "btn ghost sm", "✕");
+      b1.type = b2.type = "time"; b1.value = r.bas; b2.value = r.bit; de.value = r.ders; de.placeholder = "Ders / etkinlik"; de.setAttribute("list", "dl"); de.maxLength = 50; ko.value = r.konu || ""; ko.placeholder = "Konu (isteğe bağlı)"; ko.maxLength = 80; ko.className = "w";
+      Object.entries(TURS).forEach(([v, t]) => tp.append(new Option(t, v))); tp.value = r.tur; rm.type = "button"; rm.setAttribute("aria-label", "Satırı sil");
+      b1.oninput = () => r.bas = b1.value; b2.oninput = () => r.bit = b2.value; de.oninput = () => r.ders = de.value; ko.oninput = () => r.konu = ko.value; tp.onchange = () => r.tur = tp.value;
+      rm.onclick = () => { f.satirlar = f.satirlar.filter(x => x !== r); draw(); }; refs.set(r, { b1, b2, de });
+      w.append(b1, b2, de, ko, tp, rm); parts.push(w);
+    });
+    const add = el("button", "btn ghost sm", "+ Satır ekle"), cpy = el("select"); add.type = "button";
+    add.onclick = () => { const last = f.satirlar.filter(x => x.gun === day).sort((a, b) => a.bas.localeCompare(b.bas)).pop(), bas = last ? last.bit : "16:00"; f.satirlar.push({ id: rid(), gun: day, bas, bit: plus(bas, 45), ders: "", konu: "", tur: f.tur === "ders" ? "ders" : "calisma" }); draw(); };
+    cpy.append(new Option("Bu günü kopyala…", "")); cpy.append(new Option("Hafta içi diğer günlere", "wk")); GUN.forEach((g, i) => i !== day && cpy.append(new Option(g + " gününe", String(i)))); cpy.style.maxWidth = "220px";
+    cpy.onchange = () => { if (!cpy.value) return; const src = f.satirlar.filter(x => x.gun === day), tg = cpy.value === "wk" ? [0, 1, 2, 3, 4].filter(i => i !== day) : [+cpy.value];
+      if (!src.length) { cpy.value = ""; return show("Kopyalanacak satır yok."); } if (!confirm("Hedef günlerdeki mevcut satırlar silinip bu günün satırları kopyalansın mı?")) { cpy.value = ""; return; }
+      f.satirlar = f.satirlar.filter(x => !tg.includes(x.gun)).concat(tg.flatMap(g => src.map(x => ({ ...x, id: rid(), gun: g })))); draw(); };
+    const bar = el("div", "addrow"); bar.append(add, cpy); parts.push(bar);
+    // kaydet
+    const fail = (g, m) => { if (g !== day) { day = g; draw(); } return m; };
+    const validate = () => {
+      if (!f.ad.trim()) { ad.classList.add("bad"); return "Programa bir ad ver."; }
+      if (f.k === "sinif" && !f.sinif) return "Bir sınıf seç.";
+      if (f.k === "kisi" && !f.uids.length) return "En az bir öğrenci seç.";
+      if (!f.satirlar.length) return "En az bir satır ekle.";
+      for (let g = 0; g < 7; g++) {
+        const a = f.satirlar.filter(x => x.gun === g).sort((x, y) => x.bas.localeCompare(y.bas));
+        for (let i = 0; i < a.length; i++) {
+          const r = a[i], R = refs.get(r);
+          if (!r.ders.trim()) { R && R.de.classList.add("bad"); return fail(g, GUN[g] + ": bir satırın ders/etkinlik adı boş."); }
+          if (!r.bas || !r.bit || r.bit <= r.bas) { R && R.b2.classList.add("bad"); return fail(g, GUN[g] + ": “" + r.ders + "” için bitiş saati başlangıçtan sonra olmalı."); }
+          if (i && a[i - 1].bit > r.bas) return fail(g, GUN[g] + ": “" + a[i - 1].ders + "” ile “" + r.ders + "” saatleri çakışıyor.");
+        }
+      }
+      return "";
+    };
+    const sv = el("button", "btn", "Kaydet"), cn = el("button", "btn ghost", "Vazgeç"); sv.type = cn.type = "button"; cn.onclick = () => { ed = null; draw(); };
+    sv.onclick = () => run(sv, "Kaydediliyor…", async () => {
+      const err = validate(); if (err) return show(err);
+      const data = { okulId: me.okulId, ad: f.ad.trim(), tur: f.tur, kapsam: f.k === "okul" ? "okul" : f.k === "sinif" ? "sinif:" + f.sinif : "kisi", ogrenciler: f.k === "kisi" ? f.uids : [],
+        satirlar: f.satirlar.map(({ id, gun, bas, bit, ders, konu, tur }) => ({ id, gun, bas, bit, ders: ders.trim(), konu: (konu || "").trim(), tur })).sort((a, b) => a.gun - b.gun || a.bas.localeCompare(b.bas)),
+        not: f.not.trim(), olusturan: me.uid, olusturanAd: me.ad + " " + me.soyad, guncelleme: serverTimestamp() };
+      if (f.id) { await updateDoc(doc(db, "programlar", f.id), data); list = list.map(x => x.id === f.id ? { id: f.id, ...data } : x); }
+      else { data.olusturma = serverTimestamp(); const r = await addDoc(collection(db, "programlar"), data); list.push({ id: r.id, ...data }); }
+      ed = null; show("Program kaydedildi.", true); draw();
+    });
+    const ac = el("div", "addrow"); ac.style.marginTop = "18px"; ac.append(sv, cn); parts.push(ac);
+    $("app").replaceChildren(...parts);
+  }
+  draw();
+}
+</script></body></html>
