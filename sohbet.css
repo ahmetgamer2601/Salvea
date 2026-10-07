@@ -64,4 +64,7 @@ body.chatpage{display:block;height:100vh;height:100dvh;overflow:hidden}
 @keyframes dots{0%,80%,100%{transform:translateY(0);opacity:.4}40%{transform:translateY(-4px);opacity:1}}
 @keyframes flashbg{0%,60%{background:#d5e5d8}100%{background:transparent}}
 @keyframes flashbub{0%,50%{box-shadow:0 0 0 3px rgba(44,85,69,.55)}100%{box-shadow:0 1px 1px rgba(0,0,0,.09)}}
-@media(max-width:760px){.app{grid-template-columns:1fr}.app .main{display:none}.app.inchat .side{display:none}.app.inchat .main{display:flex}#cback{display:grid}.msgs{padding:12px 3%}.bub{max-width:88%}}
+@media(max-width:760px){.app{grid-template-columns:1fr}.app .main{display:none}.app.inchat .side{display:none}.app.inchat .main{display:flex}#cback{display:grid}.msgs{padding:12px 3%}.bub{max-width:88%}}.qpanel{background:var(--paper);border-top:1.5px solid var(--line);padding:10px 14px;max-height:42vh;overflow:auto;animation:drop .18s ease-out}
+.qitem{display:block;width:100%;text-align:left;font:inherit;font-size:.9rem;padding:9px 12px;margin-top:6px;border:1.5px solid var(--line);border-radius:10px;background:var(--cream);color:var(--ink);cursor:pointer}
+.qitem:hover{background:var(--mist)}.qitem.rnd{background:var(--forest);color:var(--cream);border-color:var(--forest);font-weight:600}.qitem.rnd:hover{background:var(--forest2)}
+.bub.soru,.row.me .bub.soru{background:#fbf3dc;border:1.5px solid #e6d29a}
