@@ -1,0 +1,67 @@
+<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Salvea · Bilgi kartları</title>
+<link rel="icon" type="image/png" href="logo.png"><link rel="apple-touch-icon" href="logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="auth.css"><link rel="stylesheet" href="panel.css"></head>
+<body class="solo"><div class="shell" style="max-width:640px">
+<header class="top"><div class="tile"><img src="logo.png" alt="Salvea"></div><div><b>Bilgi kartları</b><span id="sc"></span></div></header>
+<div class="wk" id="cats" role="group" aria-label="Konu"></div>
+<div class="rng" style="margin-bottom:6px"><span id="cnt"></span><label class="chk" style="margin:0"><input type="checkbox" id="only"><span>Sadece bilmediklerim</span></label></div>
+<div class="pbar"><i id="bar" style="width:0"></i></div>
+<div class="fcw" id="stage"></div>
+<div class="fcb" id="btns"></div>
+<p class="foot">Kartı çevirmek için dokun ya da boşluk tuşuna bas. Sağa kaydır veya → : biliyordum. Sola kaydır veya ← : tekrar göster.</p>
+<div class="msg" id="msg" role="alert"></div>
+</div>
+<script src="ortak.js"></script>
+<script type="module">
+import { guard } from "./guard.js";
+import { mountNav } from "./nav.js";
+import { KARTLAR, RENK } from "./kultur.js";
+const me = await guard(); mountNav(me, "kultur");
+const { $ } = S;
+const el = (t, c, txt) => { const e = document.createElement(t); if (c) e.className = c; if (txt != null) e.textContent = txt; return e; };
+$("sc").textContent = me.okul || "";
+const KEY = "salvea_kultur_" + me.uid;
+let known = new Set(); try { known = new Set(JSON.parse(localStorage.getItem(KEY) || "[]")); } catch (_) {}
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify([...known])); } catch (_) {} };
+const shuffle = a => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const ALL = KARTLAR.map((c, i) => ({ ...c, id: i }));
+let cat = "", only = false, deck = [], flip = false;
+const inCat = () => ALL.filter(c => !cat || c.k === cat);
+const rebuild = () => { deck = shuffle(inCat().filter(c => !only || !known.has(c.id))); flip = false; draw(true); };
+
+function drawCats() {
+  $("cats").replaceChildren(...["", ...Object.keys(RENK)].map(k => { const b = el("button", "chip", k || "Hepsi"); b.type = "button"; b.setAttribute("aria-pressed", String(cat === k)); b.onclick = () => { cat = k; drawCats(); rebuild(); }; return b; }));
+}
+function know() { if (!deck.length) return; known.add(deck[0].id); save(); deck.shift(); next(); }
+function again() { if (!deck.length) return; deck.push(deck.shift()); next(); }
+function next() { flip = false; draw(true); }
+
+function draw(anim) {
+  const pool = inCat(), kn = pool.filter(c => known.has(c.id)).length;
+  $("cnt").textContent = kn + " / " + pool.length + " kart biliniyor";
+  $("bar").style.width = (pool.length ? kn / pool.length * 100 : 0) + "%";
+  const st = $("stage"), bt = $("btns");
+  if (!deck.length) {
+    const d = el("div", "empty", only || kn === pool.length ? "Bu konudaki tüm kartları biliyorsun. Harikasın! 🎉" : "Bu konuda kart yok."), r = el("button", "btn sm", "Baştan başla"); r.type = "button";
+    r.onclick = () => { pool.forEach(c => known.delete(c.id)); save(); only = false; $("only").checked = false; rebuild(); };
+    st.replaceChildren(d); bt.replaceChildren(r); return;
+  }
+  const c = deck[0], col = RENK[c.k] || "#2c5545";
+  const f = el("div", "fc" + (anim ? " in" : "") + (flip ? " flip" : "")); f.tabIndex = 0; f.setAttribute("role", "button"); f.setAttribute("aria-label", "Kartı çevir");
+  const i = el("div", "fci"), fr = el("div", "fcf"), bk = el("div", "fcf bk");
+  fr.style.background = col; bk.style.background = "#1d3a2f"; bk.style.backgroundImage = "linear-gradient(160deg," + col + "55,transparent)";
+  fr.append(el("small", "", c.k), el("p", "", c.o), el("em", "", "Cevap için dokun")); bk.append(el("small", "", c.k), el("p", "", c.a));
+  i.append(fr, bk); f.append(i);
+  const toggle = () => { flip = !flip; f.classList.toggle("flip", flip); };
+  f.onclick = toggle; f.onkeydown = e => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); toggle(); } };
+  let x0 = null; f.ontouchstart = e => x0 = e.touches[0].clientX; f.ontouchend = e => { if (x0 == null) return; const dx = e.changedTouches[0].clientX - x0; x0 = null; if (dx > 70) know(); else if (dx < -70) again(); };
+  st.replaceChildren(f);
+  const a = el("button", "btn ghost", "↻ Tekrar göster"), b = el("button", "btn", "✓ Biliyordum"); a.type = b.type = "button"; a.onclick = again; b.onclick = know;
+  bt.replaceChildren(a, b);
+}
+$("only").onchange = e => { only = e.target.checked; rebuild(); };
+document.addEventListener("keydown", e => { if (/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return; if (e.key === "ArrowRight") know(); else if (e.key === "ArrowLeft") again(); });
+drawCats(); rebuild();
+</script></body></html>
