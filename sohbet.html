@@ -17,7 +17,8 @@
 <div class="msgs" id="msgs" aria-live="polite"></div>
 <div class="rbar" id="rbar" hidden><div class="q" id="rq"></div><button class="icon" id="rx" type="button" aria-label="Yanıtı kaldır">✕</button></div>
 <div class="pv" id="pv" hidden><img id="pvi" alt="Seçilen fotoğraf"><span style="flex:1;font-size:.85rem;color:#5b6b61">Fotoğraf gönderilecek. İstersen yazı da ekle.</span><button class="icon" id="pvx" type="button" aria-label="Fotoğrafı kaldır">✕</button></div>
-<footer class="comp" id="comp"><label class="icon" for="pf" aria-label="Fotoğraf ekle" style="cursor:pointer">📎</label><input type="file" id="pf" accept="image/*" hidden>
+<div class="qpanel" id="qpanel" hidden></div>
+<footer class="comp" id="comp"><button class="icon" id="qb" type="button" aria-label="Sohbet sorusu seç" title="Gruba sohbet sorusu at" hidden>💡</button><label class="icon" for="pf" aria-label="Fotoğraf ekle" style="cursor:pointer">📎</label><input type="file" id="pf" accept="image/*" hidden>
 <textarea id="txt" rows="1" maxlength="1000" placeholder="Mesaj yaz" aria-label="Mesaj"></textarea><button class="send" id="send" type="button" aria-label="Gönder">➤</button></footer>
 <div class="closed" id="closed" hidden>🔒 Bu sohbet kapandı. Dönem sona erdiği için mesajlar yalnızca okunabilir.</div>
 </div></section></div>
@@ -28,6 +29,7 @@
 import { db } from "./firebase.js";
 import { guard } from "./guard.js";
 import { resizeFit } from "./foto.js";
+import { SORULAR } from "./veri.js";
 import { collection, query, where, orderBy, limit, onSnapshot, getDocs, doc, setDoc, updateDoc, writeBatch, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 const me = await guard();
 const { $ } = S;
@@ -58,6 +60,7 @@ onSnapshot(query(collection(db, "sohbetler"), where("uyeler", "array-contains", 
   if (curId && chats[curId]) { sub(); comp(); updTicks(); markRead(); }
 }, e => toast("Sohbetler okunamadı: " + (e.code || e.message)));
 function renderList() {
+  { const n = Object.values(chats).filter(unread).length; document.title = (n ? "(" + n + ") " : "") + "Salvea · Sohbet"; }
   const list = Object.values(chats).sort((a, b) => (T(b.sonTs) || T(b.olusturma)) - (T(a.sonTs) || T(a.olusturma)));
   if (!list.length) return $("clist").replaceChildren(el("div", "emptym", "Henüz sohbetin yok. + ile rehber öğretmenine yazabilirsin."));
   $("clist").replaceChildren(...list.map(c => {
@@ -133,7 +136,7 @@ function fill(n, m) {
     if (grp && !mine) { const nm = el("div", "nm", m.ad); nm.style.color = colorOf(m.uid); b.append(nm); }
     if (m.yanit) { const q = el("button", "quote"); q.type = "button"; q.append(el("b", "", m.yanit.ad), el("span", "", (m.yanit.foto ? "📷 " : "") + (m.yanit.metin || (m.yanit.foto ? "Fotoğraf" : "")))); q.onclick = () => jump(m.yanit.id); b.append(q); }
     if (m.foto) { const im = el("img", "ph"); im.src = m.foto; im.alt = "Gönderilen fotoğraf"; im.onclick = () => { $("lbi").src = m.foto; $("lb").hidden = false; }; b.append(im); }
-    if (m.metin) b.append(el("span", "tx", m.metin));
+    if (m.metin) { b.append(el("span", "tx", m.metin)); if (m.metin.startsWith("💡 ")) b.classList.add("soru"); }
   }
   const mt = el("span", "mt"); if (m.ts) mt.append(el("time", "", hm(T(m.ts))));
   if (mine && !m.silindi) { const st = readState(m); mt.append(el("span", "tick" + (st === "r" ? " read" : ""), st === "p" ? "🕓" : st === "s" ? "✓" : "✓✓")); }
@@ -175,7 +178,7 @@ function markRead() {
 }
 
 /* ---------- Yazma alanı ---------- */
-function comp() { const c = C(), k = closed(c); $("comp").hidden = k; $("closed").hidden = !k; if (k) { $("rbar").hidden = true; $("pv").hidden = true; } }
+function comp() { const c = C(), k = closed(c); $("comp").hidden = k; $("closed").hidden = !k; $("qb").hidden = !c || c.tur !== "takim" || k; if (k || $("qb").hidden) $("qpanel").hidden = true; if (k) { $("rbar").hidden = true; $("pv").hidden = true; } }
 function updPv() { $("pv").hidden = !pend; if (pend) $("pvi").src = pend; }
 $("pvx").onclick = () => { pend = null; updPv(); };
 $("pf").onchange = async () => {
@@ -190,17 +193,25 @@ $("txt").oninput = () => {
 };
 $("txt").onkeydown = e => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); } };
 $("send").onclick = send;
-async function send() {
-  const c = C(), text = $("txt").value.trim(); if (!c || (!text && !pend) || closed(c)) return;
-  const mref = doc(collection(db, "sohbetler", curId, "mesajlar")), foto = pend, yn = reply;
+async function send(over) {
+  const custom = typeof over === "string", c = C(), text = custom ? over : $("txt").value.trim(); if (!c || (!text && (custom || !pend)) || closed(c)) return;
+  const mref = doc(collection(db, "sohbetler", curId, "mesajlar")), foto = custom ? null : pend, yn = custom ? null : reply;
   const m = { uid: me.uid, ad: myName, metin: text, foto: foto || null, yanit: yn ? { id: yn.id, ad: yn.uid === me.uid ? "Sen" : yn.ad, metin: (yn.metin || "").slice(0, 80), foto: !!yn.foto } : null, silindi: false, ts: serverTimestamp() };
-  $("txt").value = ""; grow(); pend = null; reply = null; updPv(); updReply(); lastTyping = 0;
+  if (!custom) { $("txt").value = ""; grow(); pend = null; reply = null; updPv(); updReply(); lastTyping = 0; }
   const b = writeBatch(db);
   b.set(mref, m);
   b.update(ref(), { son: { id: mref.id, uid: me.uid, ad: myName, metin: text || "Fotoğraf", foto: !!foto }, sonTs: serverTimestamp(), ["okundu." + me.uid]: serverTimestamp(), ["yaziyor." + me.uid]: 0 });
-  try { await b.commit(); } catch (e) { toast("Mesaj gönderilemedi: " + (e.code || e.message)); $("txt").value = text; grow(); }
+  try { await b.commit(); } catch (e) { toast("Mesaj gönderilemedi: " + (e.code || e.message)); if (!custom) { $("txt").value = text; grow(); } }
 }
 $("lb").onclick = () => $("lb").hidden = true;
+
+/* ---------- Sohbet soruları ---------- */
+$("qb").onclick = () => {
+  const p = $("qpanel"); p.hidden = !p.hidden; if (p.hidden) return;
+  const go = s => { p.hidden = true; send("💡 " + s); };
+  const rnd = el("button", "qitem rnd", "🎲 Rastgele bir soru at"); rnd.type = "button"; rnd.onclick = () => go(SORULAR[Math.floor(Math.random() * SORULAR.length)]);
+  p.replaceChildren(el("small", "hint", "Bir soru seç, takım sohbetine gönderilsin:"), rnd, ...SORULAR.map(s => { const b = el("button", "qitem", s); b.type = "button"; b.onclick = () => go(s); return b; }));
+};
 
 /* ---------- Yeni mesaj ---------- */
 $("newb").onclick = async () => {
