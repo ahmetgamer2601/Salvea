@@ -28,7 +28,7 @@ const fmtS = s => new Date(s + "T12:00:00").toLocaleDateString("tr-TR", { day: "
 const fmtL = s => new Date(s + "T12:00:00").toLocaleDateString("tr-TR", { weekday: "long", day: "numeric", month: "long" });
 const past = (d, h) => new Date(d + "T" + h + ":00") < new Date();
 const STAT = { bekliyor: ["Bekliyor", "b"], onaylandi: ["Onaylandı", "o"], reddedildi: ["Reddedildi", "r"], iptal: ["İptal", "i"] };
-let off = 0, sel = null, tmpl = {}, rand = [], ogrt = [], tSel = null, dolu = {};
+let emode = false, saveTm = null, off = 0, sel = null, tmpl = {}, rand = [], ogrt = [], tSel = null, dolu = {};
 if (!me.okulId) $("app").replaceChildren(empty("Okulun henüz yönetici tarafından eşleştirilmedi. Eşleştirilince randevu sistemini kullanabilirsin."));
 else (teacher ? initT() : initS());
 
@@ -38,14 +38,17 @@ function weekBar() {
   return w;
 }
 const legend = items => { const l = el("div", "lg"); items.forEach(([c, t]) => { const s = el("span"), i = el("i"); i.style.background = c; s.append(i, t); l.append(s); }); return l; };
-function grid(stateOf, onPick) {
+function grid(stateOf, o) {
   const days = weekDays(off), g = el("div", "grid5"); g.append(el("div"));
-  days.forEach((d, i) => g.append(el("div", "hd", GUN[i] + "\n" + fmtS(d))));
-  g.querySelectorAll(".hd").forEach(h => h.style.whiteSpace = "pre-line");
+  days.forEach((d, i) => { const h = el(o.day ? "button" : "div", "hd", GUN[i] + "\n" + fmtS(d)); h.style.whiteSpace = "pre-line"; if (o.day) { h.type = "button"; h.title = "Bu günün tüm saatlerini aç/kapat"; h.onclick = () => o.day(i); } g.append(h); });
   SAAT.forEach(h => {
-    g.append(el("div", "hr", h));
+    const l = el(o.hour ? "button" : "div", "hr", h); if (o.hour) { l.type = "button"; l.title = "Bu saati hafta içi tüm günler için aç/kapat"; l.onclick = () => o.hour(h); } g.append(l);
     days.forEach((d, i) => { const s = stateOf(d, i, h), b = el("button", "cell " + s.k, s.t || ""); b.type = "button"; b.setAttribute("aria-label", fmtL(d) + " " + h + " " + (s.t || s.k));
-      b.setAttribute("aria-pressed", String(!!sel && sel.date === d && sel.saat === h)); if (s.k === "kapali" || s.k === "gecmis" || (s.k === "dolu" && !onPick.dolu)) b.disabled = true; else b.onclick = () => { sel = { date: d, saat: h, di: i, s }; draw(); }; g.append(b); });
+      b.setAttribute("aria-pressed", String(!!sel && sel.date === d && sel.saat === h));
+      // öğretmen kapalı saati de seçebilmeli (müsaitlik açmak için); öğrenci seçemez
+      if (s.k === "gecmis" || (s.k === "kapali" && !o.kapali) || (s.k === "dolu" && !o.dolu)) b.disabled = true;
+      else b.onclick = () => o.cell ? o.cell(d, i, h, s) : (sel = { date: d, saat: h, di: i, s }, draw());
+      g.append(b); });
   });
   return g;
 }
@@ -68,9 +71,27 @@ const slotT = (d, di, h) => {
 };
 async function run(btn, label, fn) { const o = btn.textContent; btn.disabled = true; btn.textContent = label; try { await fn(); } catch (e) { show("İşlem başarısız: " + (e.code || e.message)); } btn.disabled = false; btn.textContent = o; }
 function draw() { teacher ? drawT() : drawS(); }
+const toggleSlot = (di, h) => { const a = new Set(tmpl[di] || []); a.has(h) ? a.delete(h) : a.add(h); tmpl[di] = [...a].sort(); saveSoon(); draw(); };
+const setDay = i => { const all = SAAT.every(h => (tmpl[i] || []).includes(h)); tmpl[i] = all ? [] : [...SAAT]; saveSoon(); draw(); };
+const setHour = h => { const D = [0, 1, 2, 3, 4], all = D.every(i => (tmpl[i] || []).includes(h)); D.forEach(i => { const a = new Set(tmpl[i] || []); all ? a.delete(h) : a.add(h); tmpl[i] = [...a].sort(); }); saveSoon(); draw(); };
+const saveSoon = () => { clearTimeout(saveTm); saveTm = setTimeout(() => saveT().then(() => show("Müsaitlik kaydedildi.", true)).catch(e => show("Kaydedilemedi: " + (e.code || e.message))), 600); };
+const tOpts = () => ({ dolu: true, kapali: true,
+  cell: (d, i, h, s) => { if (emode && (s.k === "musait" || s.k === "kapali")) toggleSlot(i, h); else { sel = { date: d, saat: h, di: i, s }; draw(); } },
+  day: emode ? setDay : null, hour: emode ? setHour : null });
+function editBar() {
+  const w = el("div", "wk"), t = el("button", "chip", emode ? "✓ Düzenleme açık, bitirmek için dokun" : "✏️ Müsait saatlerimi düzenle"); t.type = "button"; t.setAttribute("aria-pressed", String(emode));
+  t.onclick = () => { emode = !emode; sel = null; draw(); }; w.append(t);
+  if (emode) {
+    const pr = el("button", "chip", "Hafta içi 09:00–12:00 ve 13:00–16:00 aç"), cl = el("button", "chip", "Hepsini kapat"); pr.type = cl.type = "button";
+    pr.onclick = () => { if (!confirm("Hafta içi şablonu şu anki müsaitliğinin üstüne yazılsın mı?")) return; [0, 1, 2, 3, 4].forEach(i => tmpl[i] = ["09:00", "10:00", "11:00", "13:00", "14:00", "15:00"]); saveSoon(); draw(); };
+    cl.onclick = () => { if (!confirm("Tüm müsait saatlerin kapatılsın mı?")) return; tmpl = {}; saveSoon(); draw(); };
+    w.append(pr, cl);
+  }
+  return w;
+}
 function drawT() {
-  const parts = [el("p", "hint", "Yeşil saatler öğrencilerin randevu isteyebileceği saatlerdir. Bir saate tıklayıp o saati her hafta müsait yapabilir ya da kendi görüşmeni ve meşgul olduğun saati girebilirsin."), weekBar(),
-    legend([["#e3eedf", "Müsait"], ["#fbf0cf", "Talep var"], ["#d8d6cb", "Dolu / meşgul"], ["transparent", "Kapalı"]]), grid(slotT, { dolu: true })];
+  const parts = [el("p", "hint", emode ? "Düzenleme açık: bir saate dokununca o saat her hafta müsait olur/kapanır. Gün adına dokunursan o günün tamamı, saate dokunursan hafta içi o saat açılır. Değişiklikler otomatik kaydedilir." : "Yeşil saatler öğrencilerin randevu isteyebileceği saatlerdir. Müsaitliğini değiştirmek için “Müsait saatlerimi düzenle”yi aç; belirli bir saati meşgul yapmak için saate dokun."), weekBar(), editBar(),
+    legend([["#e3eedf", "Müsait"], ["#fbf0cf", "Talep var"], ["#d8d6cb", "Dolu / meşgul"], ["transparent", "Kapalı"]]), grid(slotT, tOpts())];
   if (sel) {
     const x = slotT(sel.date, sel.di, sel.saat), p = el("div", "gor"); p.append(el("h3", "", fmtL(sel.date) + " · " + sel.saat));
     if (x.k === "dolu") {
