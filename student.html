@@ -14,7 +14,8 @@
 <section id="profil" hidden>
 <div class="pf"><div class="av" id="av"></div><div><b>Profil fotoğrafı</b><small class="hint">Fotoğrafını öğretmenlerin görür. İstersen aşağıdaki kutuyla takım arkadaşların da görebilir.</small>
 <div class="acts"><label class="btn ghost sm filebtn">Fotoğraf seç<input type="file" id="file" accept="image/*" hidden></label><button class="btn ghost sm" id="rmf" type="button" hidden>Kaldır</button></div></div></div>
-<label class="chk" style="margin:-8px 0 20px"><input type="checkbox" id="fp"><span>Fotoğrafım takım arkadaşlarıma da görünsün <small class="hint" style="display:inline">(bir sonraki takım döneminden itibaren)</small></span></label>
+<label class="chk" style="margin:-8px 0 20px"><input type="checkbox" id="fp"><span>Fotoğrafım takım arkadaşlarıma ve profilimi görebilenlere de görünsün <small class="hint" style="display:inline">(takım arkadaşları için bir sonraki dönemden itibaren)</small></span></label>
+<label class="chk" style="margin:-8px 0 20px"><input type="checkbox" id="ha"><span>Profilim okuldaki diğer öğrencilere görünsün <small class="hint" style="display:block">Takma adın, sınıfın, tanıtım yazın ve ilgi alanların görünür. Soyadın, e-postan ve diğer bilgilerin hiçbir zaman görünmez. İstediğin zaman kapatabilirsin.</small></span></label>
 <div class="f"><label for="tan">Kendini kısaca tanıt</label><textarea id="tan" maxlength="300" rows="4" placeholder="Nasıl biri olduğunu, neleri sevdiğini yaz."></textarea><small class="hint"><span id="cnt">0</span>/300 · Bunu yalnızca öğretmenlerin görür.</small></div>
 <div class="f"><label>İlgi alanların (en az 3)</label><div class="chips sel" id="ilg"></div>
 <div class="addrow"><input id="ozel" maxlength="24" placeholder="Başka bir ilgi ekle"><button type="button" class="btn ghost sm" id="ozelb">Ekle</button></div><small class="hint">İlgi alanlarını takım arkadaşlarınla paylaşırız.</small></div>
@@ -73,16 +74,16 @@ function chips(box, all, sel) {
 function fillForm() {
   $("tan").value = prof.tanitim || ""; $("cnt").textContent = $("tan").value.length; $("bil").value = prof.bilgi || "";
   chips($("ilg"), ILGILER, prof.ilgiler); chips($("akt"), AKTIVITELER, prof.aktiviteler);
-  avatar($("av"), foto, me.takmaAd || me.ad); $("rmf").hidden = !foto; $("fp").checked = !!prof.fotoPaylas;
+  avatar($("av"), foto, me.takmaAd || me.ad); $("rmf").hidden = !foto; $("fp").checked = !!prof.fotoPaylas; $("ha").checked = !!prof.herkeseAcik;
 }
 $("tan").oninput = () => $("cnt").textContent = $("tan").value.length;
 $("ozelb").onclick = () => { const v = $("ozel").value.trim(); if (!v) return; if (prof.ilgiler.length >= 12) return show("En fazla 12 ilgi alanı ekleyebilirsin."); if (!prof.ilgiler.includes(v)) prof.ilgiler.push(v); $("ozel").value = ""; chips($("ilg"), ILGILER, prof.ilgiler); };
 $("ozel").onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); $("ozelb").click(); } };
 $("save").onclick = async () => {
-  prof.tanitim = $("tan").value.trim(); prof.bilgi = $("bil").value.trim(); prof.fotoPaylas = $("fp").checked;
+  prof.tanitim = $("tan").value.trim(); prof.bilgi = $("bil").value.trim(); prof.fotoPaylas = $("fp").checked; prof.herkeseAcik = $("ha").checked;
   $("save").disabled = true;
   try {
-    await setDoc(doc(db, "profiller", me.uid), { tanitim: prof.tanitim, ilgiler: prof.ilgiler, aktiviteler: prof.aktiviteler, bilgi: prof.bilgi, fotoPaylas: prof.fotoPaylas, tamam: eksik().length === 0, okulId: me.okulId || null, guncelleme: serverTimestamp() });
+    await setDoc(doc(db, "profiller", me.uid), { tanitim: prof.tanitim, ilgiler: prof.ilgiler, aktiviteler: prof.aktiviteler, bilgi: prof.bilgi, fotoPaylas: prof.fotoPaylas, herkeseAcik: prof.herkeseAcik, takmaAd: me.takmaAd || me.ad, sinif: me.sinif, tamam: eksik().length === 0, okulId: me.okulId || null, guncelleme: serverTimestamp() });
     show(eksik().length ? "Kaydedildi. Profilinde hâlâ eksikler var." : "Profilin kaydedildi. Teşekkürler!", true);
   } catch (e) { show("Kaydedilemedi: " + (e.code || e.message)); }
   $("save").disabled = false; updateAlert();
