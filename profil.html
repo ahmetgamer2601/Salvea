@@ -1,0 +1,76 @@
+<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Salvea · Kişiler</title>
+<link rel="icon" type="image/png" href="logo.png"><link rel="apple-touch-icon" href="logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="auth.css"><link rel="stylesheet" href="panel.css"></head>
+<body class="solo"><div class="shell" style="max-width:760px">
+<header class="top"><div class="tile"><img src="logo.png" alt="Salvea"></div><div><b id="hi">Kişiler</b><span id="sc"></span></div></header>
+<div id="app"></div>
+<div class="msg" id="msg" role="alert"></div>
+</div>
+<script src="ortak.js"></script>
+<script type="module">
+import { db } from "./firebase.js";
+import { guard } from "./guard.js";
+import { mountNav } from "./nav.js";
+import { getProfile, setAvatar } from "./profilveri.js";
+import { collection, query, where, getDocs, getDoc, doc } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+const me = await guard(); mountNav(me, "kisi");
+const { $ } = S, teacher = me.role === "teacher";
+const el = (t, c, txt) => { const e = document.createElement(t); if (c) e.className = c; if (txt != null) e.textContent = txt; return e; };
+const empty = t => el("div", "empty", t);
+$("sc").textContent = me.okul || "";
+const uid = new URLSearchParams(location.search).get("u");
+if (!me.okulId) $("app").replaceChildren(empty("Okulun henüz yönetici tarafından eşleştirilmedi."));
+else uid ? one(uid) : list();
+
+async function mine() { const p = await getProfile(me.uid, teacher); return p.empty || p.denied ? { ilgiler: [] } : p; }
+
+/* ---------- Tek profil ---------- */
+async function one(u) {
+  $("hi").textContent = "Profil";
+  const [p, my] = await Promise.all([getProfile(u, teacher), mine()]);
+  const back = el("a", "link", "← Tüm kişiler"); back.href = "profil.html";
+  if (p.denied) return $("app").replaceChildren(back, empty(u === me.uid ? "Profilin okunamadı." : "Bu kişi profilini paylaşmamış."));
+  if (p.empty) return $("app").replaceChildren(back, empty("Bu kişi henüz profilini doldurmamış."));
+  let ad = p.takmaAd || "Öğrenci", alt = p.sinif ? p.sinif + ". sınıf" : "";
+  if (teacher) { try { const x = (await getDoc(doc(db, "users", u))).data(); if (x) { ad = x.ad + " " + x.soyad; alt = x.sinif + "-" + x.sube; } } catch (_) {} }
+  const parts = [back], head = el("div", "pf"), av = el("div", "av"), i = el("div"); setAvatar(av, p.foto, ad);
+  i.append(el("b", "", ad), el("small", "hint", alt)); i.firstChild.style.cssText = "font-family:var(--serif);font-size:1.6rem;font-weight:500;display:block";
+  head.append(av, i); parts.push(head);
+  const mineSet = new Set(my.ilgiler || []), ortak = (p.ilgiler || []).filter(x => mineSet.has(x));
+  if (u !== me.uid && ortak.length) { const n = el("div", "note", "Ortak ilgi alanlarınız: " + ortak.join(", ") + ". Bunun hakkında konuşmak için güzel bir başlangıç!"); n.style.margin = "0 0 18px"; parts.push(n); }
+  const sec = (t, node) => { parts.push(el("h2", "s", t), node); };
+  if (p.tanitim) sec("Hakkında", el("p", "", p.tanitim));
+  if ((p.ilgiler || []).length) { const c = el("div", "chips"); p.ilgiler.forEach(x => c.append(el("i", ortak.includes(x) ? "on" : "", x))); sec("İlgi alanları", c); }
+  if ((p.aktiviteler || []).length) { const c = el("div", "chips"); p.aktiviteler.forEach(x => c.append(el("i", "", x))); sec("Birlikte yapmak istedikleri", c); }
+  if (p.bilgi) sec("İlginç bir şey", el("p", "", p.bilgi));
+  if (u === me.uid) { const a = el("a", "btn sm", "Profilimi düzenle"); a.href = "student.html"; a.style.cssText = "text-decoration:none;display:inline-block;margin-top:18px"; parts.push(a); }
+  else if (!teacher) { const n = el("p", "hint", "Bir sorun mu var? Rehber öğretmenine sohbetten yazabilirsin."); n.style.marginTop = "22px"; const a = el("a", "link", "Sohbete git"); a.href = "sohbet.html"; n.append(" ", a); parts.push(n); }
+  $("app").replaceChildren(...parts);
+}
+
+/* ---------- Okuldakiler ---------- */
+async function list() {
+  $("hi").textContent = "Okuldakiler";
+  let rows = [];
+  try { rows = (await getDocs(query(collection(db, "profiller"), where("okulId", "==", me.okulId), where("herkeseAcik", "==", true)))).docs.map(d => ({ uid: d.id, ...d.data() })).filter(p => p.uid !== me.uid); }
+  catch (e) { return S.show("Liste okunamadı. Firestore kurallarını güncellediğinden emin ol. (" + (e.code || e.message) + ")"); }
+  const my = await mine(), mineSet = new Set(my.ilgiler || []);
+  const day = Math.floor(Date.now() / 864e5), h = s => [...s].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, day);
+  rows.sort((a, b) => h(a.uid) - h(b.uid));   // sıra her gün değişir: kimse hep en üstte ya da hep en altta kalmaz
+  const all = [...new Set(rows.flatMap(p => p.ilgiler || []))].sort((a, b) => a.localeCompare(b, "tr")); let f = "", k = "";
+  const intro = el("p", "hint", "Profilini paylaşan öğrenciler burada. Sıralama her gün değişir. Ortak ilgi alanlarına göre filtreleyebilirsin."), si = el("input"), chips = el("div", "wk"), box = el("div"); si.type = "search"; si.placeholder = "Takma ad ara"; si.style.margin = "10px 0";
+  const draw = () => {
+    chips.replaceChildren(...["", ...all].slice(0, 14).map(x => { const b = el("button", "chip", x || "Hepsi"); b.type = "button"; b.setAttribute("aria-pressed", String(f === x)); b.onclick = () => { f = x; draw(); }; return b; }));
+    const q = k.toLocaleLowerCase("tr"), r = rows.filter(p => (!f || (p.ilgiler || []).includes(f)) && (!q || (p.takmaAd || "").toLocaleLowerCase("tr").includes(q)));
+    box.replaceChildren(...(r.length ? r.map(p => {
+      const a = el("a", "row k pcard"), av = el("div", "av s"), t = el("div"), ch = el("div", "chips"), o = (p.ilgiler || []).filter(x => mineSet.has(x));
+      a.href = "profil.html?u=" + p.uid; a.style.textDecoration = "none"; a.style.color = "inherit"; a.style.gridTemplateColumns = "auto 1fr"; setAvatar(av, null, p.takmaAd); getProfile(p.uid).then(x => x.foto && setAvatar(av, x.foto, p.takmaAd));
+      (p.ilgiler || []).slice(0, 4).forEach(x => ch.append(el("i", o.includes(x) ? "on" : "", x)));
+      t.append(el("b", "", p.takmaAd || "Öğrenci"), el("small", "", (p.sinif ? p.sinif + ". sınıf" : "") + (o.length ? " · " + o.length + " ortak ilgi" : "")), ch); a.append(av, t); return a;
+    }) : [empty(rows.length ? "Bu filtreyle kimse yok." : "Henüz profilini paylaşan kimse yok. Profilini paylaşıp ilk sen ol!")]));
+  };
+  si.oninput = () => { k = si.value; draw(); }; $("app").replaceChildren(intro, si, chips, box); draw();
+}
+</script></body></html>
