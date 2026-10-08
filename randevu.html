@@ -12,8 +12,9 @@
 <script type="module">
 import { db } from "./firebase.js";
 import { guard } from "./guard.js";
-import { mountNav } from "./nav.js";
-import { collection, query, where, getDocs, getDoc, doc, setDoc, addDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+import { mountNav, markRandevuSeen } from "./nav.js";
+import { getProfile, setAvatar } from "./profilveri.js";
+import { collection, query, where, getDocs, getDoc, doc, setDoc, addDoc, updateDoc, deleteDoc, writeBatch, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 const me = await guard();
 mountNav(me, "randevu");
 const { $, show } = S;
@@ -54,12 +55,20 @@ function grid(stateOf, o) {
 }
 
 /* ===================== ÖĞRETMEN ===================== */
+// Değişen veriyi yazı yazarken kaybetmemek için: bir kutu odaktaysa çizimi o kutudan çıkınca yap
+let dirty = false;
+function safeDraw() {
+  const a = document.activeElement;
+  if (a && a.tagName === "INPUT" && $("app").contains(a) && a.value && a.type !== "date" && a.type !== "time") { if (!dirty) { dirty = true; a.addEventListener("blur", () => { dirty = false; draw(); }, { once: true }); } return; }
+  draw();
+}
 async function initT() {
   try {
-    const [t, r] = await Promise.all([getDoc(doc(db, "musaitlik", me.uid)), getDocs(query(collection(db, "randevular"), where("ogretmen", "==", me.uid)))]);
-    tmpl = t.exists() ? t.data().saatler || {} : {}; rand = r.docs.map(d => ({ id: d.id, ...d.data() }));
+    const t = await getDoc(doc(db, "musaitlik", me.uid)); tmpl = t.exists() ? t.data().saatler || {} : {};
   } catch (e) { show("Veriler okunamadı. Firestore kurallarını güncellediğinden emin ol. (" + (e.code || e.message) + ")"); }
-  draw();
+  let first = true;
+  onSnapshot(query(collection(db, "randevular"), where("ogretmen", "==", me.uid)), snap => { rand = snap.docs.map(d => ({ id: d.id, ...d.data() })); first ? (first = false, draw()) : safeDraw(); },
+    e => { show("Randevular okunamadı. (" + (e.code || e.message) + ")"); if (first) { first = false; draw(); } });
 }
 const saveT = () => setDoc(doc(db, "musaitlik", me.uid), { okulId: me.okulId, ad: myName, saatler: tmpl, guncelleme: serverTimestamp() });
 const syncDolu = date => setDoc(doc(db, "dolu", me.uid + "_" + date), { okulId: me.okulId, ogretmen: me.uid, tarih: date, saatler: rand.filter(x => x.tarih === date && x.durum === "onaylandi").map(x => x.saat) });
@@ -89,8 +98,38 @@ function editBar() {
   }
   return w;
 }
+function studentHead(r) {
+  const w = el("div", "pf"), av = el("div", "av s"), i = el("div"), b = el("b", "", r.ogrenciAd), sm = el("small", "hint", (r.sinif ? r.sinif + " · " : "") + "profil yükleniyor…"), ch = el("div", "chips"), ln = el("a", "", "Profili aç"); ln.href = "profil.html?u=" + r.ogrenci; ln.className = "link"; ln.style.fontSize = ".82rem";
+  setAvatar(av, null, r.ogrenciAd); i.append(b, sm, ch, ln); w.append(av, i);
+  getProfile(r.ogrenci, true).then(p => {
+    if (p.foto) setAvatar(av, p.foto, r.ogrenciAd);
+    if (p.empty || p.denied) { sm.textContent = (r.sinif ? r.sinif + " · " : "") + "Henüz profil doldurmadı"; return; }
+    sm.textContent = (r.sinif ? r.sinif + " · " : "") + (p.tanitim ? p.tanitim.slice(0, 110) + (p.tanitim.length > 110 ? "…" : "") : "");
+    (p.ilgiler || []).slice(0, 5).forEach(x => ch.append(el("i", "", x)));
+  });
+  return w;
+}
+function pendingSection() {
+  const parts = [];
+  const bk = rand.filter(x => x.durum === "bekliyor" && !past(x.tarih, x.saat)).sort((a, b) => (a.tarih + a.saat).localeCompare(b.tarih + b.saat));
+  if (!bk.length) { parts.push(el("p", "hint", "Bekleyen randevu talebi yok.")); return parts; }
+  parts.push(el("h2", "s", "Bekleyen talepler (" + bk.length + ")"));
+  bk.forEach(r => {
+    const c = el("div", "gor talep"), yi = el("input"), ok = el("button", "btn sm", "Onayla"), no = el("button", "btn ghost sm", "Reddet"), acts = el("div", "acts"); ok.type = no.type = "button"; acts.style.cssText = "display:flex;gap:8px;margin-top:10px";
+    yi.placeholder = "Öğrenciye kısa yanıt (isteğe bağlı)"; yi.maxLength = 120; yi.style.marginTop = "8px";
+    c.append(studentHead(r), el("p", "hint", "📅 " + fmtL(r.tarih) + " · " + r.saat), el("p", "", r.not ? "Not: " + r.not : "Not bırakmadı."), yi);
+    ok.onclick = () => run(ok, "…", async () => {
+      if (rand.some(x => x.tarih === r.tarih && x.saat === r.saat && x.durum === "onaylandi")) return show("Bu saat zaten dolu.");
+      const b = writeBatch(db); b.update(doc(db, "randevular", r.id), { durum: "onaylandi", yanit: yi.value.trim() });
+      rand.filter(x => x.id !== r.id && x.tarih === r.tarih && x.saat === r.saat && x.durum === "bekliyor").forEach(x => { b.update(doc(db, "randevular", x.id), { durum: "reddedildi", yanit: "Bu saat başka bir görüşme için ayrıldı." }); x.durum = "reddedildi"; });
+      await b.commit(); r.durum = "onaylandi"; await syncDolu(r.tarih); show("Randevu onaylandı.", true); draw(); });
+    no.onclick = () => run(no, "…", async () => { await updateDoc(doc(db, "randevular", r.id), { durum: "reddedildi", yanit: yi.value.trim() }); r.durum = "reddedildi"; draw(); });
+    acts.append(ok, no); c.append(acts); parts.push(c);
+  });
+  return parts;
+}
 function drawT() {
-  const parts = [el("p", "hint", emode ? "Düzenleme açık: bir saate dokununca o saat her hafta müsait olur/kapanır. Gün adına dokunursan o günün tamamı, saate dokunursan hafta içi o saat açılır. Değişiklikler otomatik kaydedilir." : "Yeşil saatler öğrencilerin randevu isteyebileceği saatlerdir. Müsaitliğini değiştirmek için “Müsait saatlerimi düzenle”yi aç; belirli bir saati meşgul yapmak için saate dokun."), weekBar(), editBar(),
+  const parts = [...pendingSection(), el("p", "hint", emode ? "Düzenleme açık: bir saate dokununca o saat her hafta müsait olur/kapanır. Gün adına dokunursan o günün tamamı, saate dokunursan hafta içi o saat açılır. Değişiklikler otomatik kaydedilir." : "Yeşil saatler öğrencilerin randevu isteyebileceği saatlerdir. Müsaitliğini değiştirmek için “Müsait saatlerimi düzenle”yi aç; belirli bir saati meşgul yapmak için saate dokun."), weekBar(), editBar(),
     legend([["#e3eedf", "Müsait"], ["#fbf0cf", "Talep var"], ["#d8d6cb", "Dolu / meşgul"], ["transparent", "Kapalı"]]), grid(slotT, tOpts())];
   if (sel) {
     const x = slotT(sel.date, sel.di, sel.saat), p = el("div", "gor"); p.append(el("h3", "", fmtL(sel.date) + " · " + sel.saat));
@@ -99,7 +138,7 @@ function drawT() {
       const b = el("button", "btn ghost sm", "İptal et"); b.type = "button";
       b.onclick = () => run(b, "…", async () => { if (x.r.tur === "mesgul") { await deleteDoc(doc(db, "randevular", x.r.id)); rand = rand.filter(y => y.id !== x.r.id); } else { await updateDoc(doc(db, "randevular", x.r.id), { durum: "iptal" }); x.r.durum = "iptal"; } await syncDolu(sel.date); sel = null; draw(); });
       p.append(b);
-    } else if (x.k === "talep") p.append(el("p", "hint", "Bu saat için bekleyen talep var. Aşağıdaki “Bekleyen talepler” bölümünden yanıtlayabilirsin."));
+    } else if (x.k === "talep") p.append(el("p", "hint", "Bu saat için bekleyen talep var. Sayfanın en üstündeki “Bekleyen talepler” bölümünden yanıtlayabilirsin."));
     else {
       const tg = el("button", "btn ghost sm", x.k === "musait" ? "Bu saati her hafta kapat" : "Bu saati her hafta müsait yap"); tg.type = "button";
       tg.onclick = () => run(tg, "…", async () => { const a = new Set(tmpl[sel.di] || []); a.has(sel.saat) ? a.delete(sel.saat) : a.add(sel.saat); tmpl[sel.di] = [...a].sort(); await saveT(); draw(); });
@@ -111,21 +150,6 @@ function drawT() {
     }
     parts.push(p);
   }
-  const bk = rand.filter(x => x.durum === "bekliyor" && !past(x.tarih, x.saat)).sort((a, b) => (a.tarih + a.saat).localeCompare(b.tarih + b.saat));
-  parts.push(el("h2", "s", "Bekleyen talepler" + (bk.length ? " (" + bk.length + ")" : "")));
-  if (!bk.length) parts.push(empty("Bekleyen randevu talebi yok."));
-  bk.forEach(r => {
-    const c = el("div", "gor"), yi = el("input"), ok = el("button", "btn sm", "Onayla"), no = el("button", "btn ghost sm", "Reddet"), acts = el("div", "acts"); ok.type = no.type = "button"; acts.style.cssText = "display:flex;gap:8px;margin-top:10px";
-    yi.placeholder = "Öğrenciye kısa yanıt (isteğe bağlı)"; yi.maxLength = 120; yi.style.marginTop = "8px";
-    c.append(el("h3", "", r.ogrenciAd), el("p", "hint", fmtL(r.tarih) + " · " + r.saat + (r.sinif ? " · " + r.sinif : "")), el("p", "", r.not ? "Not: " + r.not : "Not bırakmadı."), yi);
-    ok.onclick = () => run(ok, "…", async () => {
-      if (rand.some(x => x.tarih === r.tarih && x.saat === r.saat && x.durum === "onaylandi")) return show("Bu saat zaten dolu.");
-      const b = writeBatch(db); b.update(doc(db, "randevular", r.id), { durum: "onaylandi", yanit: yi.value.trim() });
-      rand.filter(x => x.id !== r.id && x.tarih === r.tarih && x.saat === r.saat && x.durum === "bekliyor").forEach(x => { b.update(doc(db, "randevular", x.id), { durum: "reddedildi", yanit: "Bu saat başka bir görüşme için ayrıldı." }); x.durum = "reddedildi"; });
-      await b.commit(); r.durum = "onaylandi"; await syncDolu(r.tarih); show("Randevu onaylandı.", true); draw(); });
-    no.onclick = () => run(no, "…", async () => { await updateDoc(doc(db, "randevular", r.id), { durum: "reddedildi", yanit: yi.value.trim() }); r.durum = "reddedildi"; draw(); });
-    acts.append(ok, no); c.append(acts); parts.push(c);
-  });
   const up = rand.filter(x => x.durum === "onaylandi" && !past(x.tarih, x.saat)).sort((a, b) => (a.tarih + a.saat).localeCompare(b.tarih + b.saat));
   parts.push(el("h2", "s", "Yaklaşan görüşmeler"));
   if (!up.length) parts.push(empty("Yaklaşan görüşme yok."));
@@ -137,9 +161,12 @@ function drawT() {
 async function initS() {
   try {
     ogrt = (await getDocs(query(collection(db, "ogretmenler"), where("okulId", "==", me.okulId)))).docs.map(d => ({ uid: d.id, ...d.data() }));
-    rand = (await getDocs(query(collection(db, "randevular"), where("ogrenci", "==", me.uid)))).docs.map(d => ({ id: d.id, ...d.data() }));
   } catch (e) { show("Veriler okunamadı. Firestore kurallarını güncellediğinden emin ol. (" + (e.code || e.message) + ")"); }
-  if (ogrt.length === 1) await pick(ogrt[0].uid); else draw();
+  let first = true;
+  onSnapshot(query(collection(db, "randevular"), where("ogrenci", "==", me.uid)), async snap => {
+    rand = snap.docs.map(d => ({ id: d.id, ...d.data() })); markRandevuSeen(me, rand);
+    if (first) { first = false; if (ogrt.length === 1) await pick(ogrt[0].uid); else draw(); } else safeDraw();
+  }, e => { show("Randevular okunamadı. (" + (e.code || e.message) + ")"); if (first) { first = false; draw(); } });
 }
 async function pick(uid) {
   tSel = uid; sel = null; tmpl = {}; dolu = {};
