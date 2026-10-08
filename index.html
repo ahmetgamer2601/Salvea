@@ -33,7 +33,7 @@ async function route(user) {
   if (user.email && d.email !== user.email) { try { await updateDoc(doc(db, "users", user.uid), { email: user.email }); } catch (_) {} }
   if (d.admin === true) location.replace("admin.html");
   else if (d.role === "teacher") location.replace(d.onayli === true ? "teacher.html" : "bekle.html");
-  else location.replace("student.html");
+  else location.replace("akis.html");
 }
 let cur = null;
 onAuthStateChanged(auth, u => { cur = u; $("sess").hidden = !u; if (u) $("sm").textContent = u.email; });
