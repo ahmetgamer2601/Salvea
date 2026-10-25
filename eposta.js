@@ -1,13 +1,12 @@
-import { auth, db } from "./firebase.js";
+import { auth } from "./firebase.js";
 import { verifyBeforeUpdateEmail } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
-import { doc, updateDoc, deleteField } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 const ERR = { "auth/requires-recent-login": "Güvenlik için çıkış yapıp yeniden giriş yap, sonra tekrar dene.", "auth/email-already-in-use": "Bu e-posta başka bir hesapta kullanılıyor.", "auth/invalid-email": "E-posta adresi geçersiz.", "auth/network-request-failed": "İnternet bağlantını kontrol et." };
 
 // E-posta değiştirme formunu verilen kutuya kurar
 export function mountEmail(box, uid) {
   const f = document.createElement("form"); f.noValidate = true;
   f.innerHTML = '<div class="f"><label>Yeni e-posta adresi</label><input type="email" autocomplete="email"></div><button class="btn" type="submit">Doğrulama bağlantısı gönder</button><div class="msg" role="status"></div><small class="hint">Yeni adrese bir bağlantı göndeririz. Bağlantıya tıklayınca e-postan değişir; sonra yeni adresinle giriş yaparsın.</small>';
-  const inp = f.querySelector("input"), btn = f.querySelector("button"), msg = f.querySelector(".msg");
+  const inp = f.querySelector("input"), btn = f.querySelector("button"), msg = f.querySelector(".msg"); inp.setAttribute("aria-label", "Yeni e-posta adresi");
   const say = (t, ok) => { msg.textContent = t; msg.className = "msg " + (ok ? "ok" : "err"); };
   f.onsubmit = async e => {
     e.preventDefault();
@@ -16,8 +15,7 @@ export function mountEmail(box, uid) {
     btn.disabled = true;
     try {
       await verifyBeforeUpdateEmail(auth.currentUser, v);
-      if (uid) { try { await updateDoc(doc(db, "users", uid), { uyari: deleteField() }); } catch (_) {} }
-      say(v + " adresine doğrulama bağlantısı gönderdik. Spam klasörüne de bak.", true);
+      say(v + " adresine doğrulama bağlantısı gönderdik. Spam klasörüne de bak. Bağlantıya tıkladıktan sonra yeni adresinle giriş yap; uyarı o zaman kalkar.", true);
     } catch (err) { say(ERR[err.code] || "Gönderilemedi: " + (err.code || err.message)); }
     btn.disabled = false;
   };
