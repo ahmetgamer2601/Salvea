@@ -22,11 +22,12 @@ const me = await guard(); mountNav(me, "kultur");
 const { $ } = S;
 const el = (t, c, txt) => { const e = document.createElement(t); if (c) e.className = c; if (txt != null) e.textContent = txt; return e; };
 $("sc").textContent = me.okul || "";
-const KEY = "salvea_kultur_" + me.uid;
+const KEY = "salvea_kultur2_" + me.uid;
 let known = new Set(); try { known = new Set(JSON.parse(localStorage.getItem(KEY) || "[]")); } catch (_) {}
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify([...known])); } catch (_) {} };
 const shuffle = a => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
-const ALL = KARTLAR.map((c, i) => ({ ...c, id: i }));
+const sid = s => { let h = 5381; for (const ch of s) h = ((h << 5) + h + ch.codePointAt(0)) | 0; return (h >>> 0).toString(36); };
+const ALL = KARTLAR.map(c => ({ ...c, id: sid(c.o) }));   // sıra değişse de ilerleme kaybolmaz
 let cat = "", only = false, deck = [], flip = false;
 const inCat = () => ALL.filter(c => !cat || c.k === cat);
 const rebuild = () => { deck = shuffle(inCat().filter(c => !only || !known.has(c.id))); flip = false; draw(true); };
@@ -44,7 +45,7 @@ function draw(anim) {
   $("bar").style.width = (pool.length ? kn / pool.length * 100 : 0) + "%";
   const st = $("stage"), bt = $("btns");
   if (!deck.length) {
-    const d = el("div", "empty", only || kn === pool.length ? "Bu konudaki tüm kartları biliyorsun. Harikasın! 🎉" : "Bu konuda kart yok."), r = el("button", "btn sm", "Baştan başla"); r.type = "button";
+    const d = el("div", "empty", pool.length && (only || kn === pool.length) ? "Bu konudaki tüm kartları biliyorsun. Harikasın! 🎉" : "Bu konuda kart yok."), r = el("button", "btn sm", "Baştan başla"); r.type = "button";
     r.onclick = () => { pool.forEach(c => known.delete(c.id)); save(); only = false; $("only").checked = false; rebuild(); };
     st.replaceChildren(d); bt.replaceChildren(r); return;
   }
