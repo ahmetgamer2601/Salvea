@@ -26,7 +26,7 @@ if (location.protocol === 'file:') {
 window.S = {
   $: id => document.getElementById(id),
   show(t, ok) { const m = document.getElementById('msg'); m.textContent = t; m.className = 'msg ' + (ok ? 'ok' : 'err'); },
-  bad(id, t) { const el = document.getElementById(id); el.classList.add('bad'); el.focus(); this.show(t); return false; }
+  bad(id, t) { const el = document.getElementById(id); el.classList.add('bad'); el.focus(); S.show(t); return false; }
 };
 // Ana ekrana eklenebilir uygulama (PWA)
 (() => {
