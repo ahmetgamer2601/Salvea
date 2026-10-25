@@ -24,13 +24,13 @@ document.getElementById('forgot').addEventListener('click', () => window.salveaF
 <script type="module">
 import { auth, db } from "./firebase.js";
 import { signInWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged, signOut, setPersistence, browserLocalPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
-import { doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+import { doc, getDoc, updateDoc, deleteField } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 const { $, show, bad } = S;
 const errs = { "auth/invalid-credential": "E-posta veya şifre hatalı.", "auth/invalid-email": "E-posta adresi geçersiz.", "auth/too-many-requests": "Çok fazla deneme yapıldı. Biraz bekleyip tekrar dene.", "auth/network-request-failed": "İnternet bağlantını kontrol et." };
 async function route(user) {
   const s = await getDoc(doc(db, "users", user.uid)); const d = s.data();
   if (!d) { await signOut(auth); return show("Bu hesaba ait profil bulunamadı. Yeniden kayıt olmayı dene."); }
-  if (user.email && d.email !== user.email) { try { await updateDoc(doc(db, "users", user.uid), { email: user.email }); } catch (_) {} }
+  if (user.email && d.email !== user.email) { try { await updateDoc(doc(db, "users", user.uid), d.uyari ? { email: user.email, uyari: deleteField() } : { email: user.email }); } catch (_) {} }
   if (d.admin === true) location.replace("admin.html");
   else if (d.role === "teacher") location.replace(d.onayli === true ? "teacher.html" : "bekle.html");
   else location.replace("akis.html");
@@ -45,7 +45,7 @@ window.salveaLogin = async () => {
   if (!$("pw").value) return bad("pw", "Şifreni yaz.");
   $("go").disabled = true; $("go").textContent = "Giriş yapılıyor…";
   try { await setPersistence(auth, $("rem").checked ? browserLocalPersistence : browserSessionPersistence); const c = await signInWithEmailAndPassword(auth, m, $("pw").value); await route(c.user); }
-  catch (err) { show(errs[err.code] || "Giriş yapılamadı: " + err.code); $("go").disabled = false; $("go").textContent = "Giriş yap"; }
+  catch (err) { show(errs[err.code] || (String(err.code || "").startsWith("permission") ? "Hesap bilgilerin okunamadı (izin hatası). Yöneticiye haber ver." : "Giriş yapılamadı: " + (err.code || err.message))); $("go").disabled = false; $("go").textContent = "Giriş yap"; }
 };
 window.salveaForgot = async () => {
   const m = $("email").value.trim();
