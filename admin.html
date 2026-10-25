@@ -28,7 +28,7 @@ import { auth, db } from "./firebase.js";
 import { guard } from "./guard.js";
 import { normalize, bestMatches } from "./okul.js";
 import { signOut } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
-import { collection, getDocs, doc, addDoc, updateDoc, arrayUnion, deleteField, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+import { collection, getDocs, doc, addDoc, updateDoc, writeBatch, arrayUnion, deleteField, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 const me = await guard("admin");
 const { $, show, bad } = S;
 const el = (t, c, txt) => { const e = document.createElement(t); if (c) e.className = c; if (txt != null) e.textContent = txt; return e; };
@@ -58,12 +58,16 @@ async function assign(u, val) {
   let o;
   if (val === "__new") {
     const ad = (u.okulYazilan || u.okul || "").trim(); if (!ad) throw new Error("Yazılı okul adı yok");
+    const dup = bestMatches(ad, okullar)[0];
+    if (dup && dup.score >= 0.85) throw new Error("Buna benzer bir okul zaten var: " + dup.okul.ad + ". Listeden onu seç.");
     const ref = await addDoc(collection(db, "okullar"), { ad, kisaltma: "", alias: [], olusturma: serverTimestamp() });
     o = { id: ref.id, ad, alias: [] }; okullar.push(o);
   } else o = okullar.find(x => x.id === val);
-  await updateDoc(doc(db, "users", u.uid), { okulId: o.id, okul: o.ad });
-  const n = normalize(u.okulYazilan || "");
-  if (n && n !== normalize(o.ad) && !o.alias.includes(n)) { await updateDoc(doc(db, "okullar", o.id), { alias: arrayUnion(n) }); o.alias.push(n); }
+  const n = normalize(u.okulYazilan || ""), yeniAlias = !!n && n !== normalize(o.ad) && !o.alias.includes(n), b = writeBatch(db);
+  b.update(doc(db, "users", u.uid), { okulId: o.id, okul: o.ad });
+  if (yeniAlias) b.update(doc(db, "okullar", o.id), { alias: arrayUnion(n) });
+  await b.commit();   // ikisi birlikte yazılır, yarım kalmaz
+  if (yeniAlias) o.alias.push(n);
   u.okulId = o.id; u.okul = o.ad;
 }
 
@@ -117,7 +121,7 @@ function renderKisi() {
     const r = el("div", "row a"), a = el("div"), b = el("b", "", u.ad + " " + u.soyad);
     if (u.admin) b.append(el("span", "pill", "Admin"));
     a.append(b, el("small", "", u.email), el("small", "", (ROL[u.role] || u.role) + (u.role === "teacher" && !u.onayli ? " · onay bekliyor" : "")));
-    const sel = okulSel(u.okulId); sel.onchange = () => { if (sel.value) assign(u, sel.value).then(() => { render(); show("Okul güncellendi.", true); }).catch(e => show("Güncellenemedi: " + (e.code || e.message))); };
+    const sel = okulSel(u.okulId); sel.onchange = () => { if (!sel.value) return; if (sel.value === "__new" && !confirm("Bu kullanıcının yazdığı isimle yeni bir okul oluşturulsun mu?")) { sel.value = u.okulId || ""; return; } assign(u, sel.value).then(() => { render(); show("Okul güncellendi.", true); }).catch(e => show("Güncellenemedi: " + (e.code || e.message))); };
     const adm = el("button", "btn ghost sm", u.admin ? "Adminliği kaldır" : "Admin yap"); adm.type = "button"; adm.disabled = u.uid === me.uid;
     adm.onclick = () => act(adm, "…", async () => { await updateDoc(doc(db, "users", u.uid), { admin: !u.admin }); u.admin = !u.admin; render(); });
     const uy = el("button", "btn ghost sm", u.uyari ? "Uyarıyı kaldır" : "E-posta uyarısı"); uy.type = "button";
