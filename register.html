@@ -209,8 +209,10 @@ window.salveaRegister = async () => {
   try {
     await setPersistence(auth, browserSessionPersistence);
     const cred = await createUserWithEmailAndPassword(auth, v("email"), $("pw").value);
-    await updateProfile(cred.user, { displayName: v("ad") + " " + v("soyad") });
-    await setDoc(doc(db, "users", cred.user.uid), { ...profile, riza: { kvkk: true, acikRiza: true, kosul: true, surum: "1.1", tarih: serverTimestamp() }, olusturma: serverTimestamp() });
+    try {
+      await updateProfile(cred.user, { displayName: v("ad") + " " + v("soyad") });
+      await setDoc(doc(db, "users", cred.user.uid), { ...profile, riza: { kvkk: true, acikRiza: true, kosul: true, surum: "1.1", tarih: serverTimestamp() }, olusturma: serverTimestamp() });
+    } catch (e) { try { await cred.user.delete(); } catch (_) {} throw e; }   // profil yazılamazsa yarım hesap kalmasın, tekrar denenebilsin
     try { await sendEmailVerification(cred.user); } catch (_) {}
     for (const id of ["top", "f", "rf"]) $(id).hidden = true;
     const t = role === "teacher";
