@@ -13,7 +13,7 @@
 <details class="doc" id="dMail" style="margin:0 0 6px"><summary>E-posta adresimi değiştir</summary><div class="txt" id="mailBox"></div></details>
 <div class="msg" id="msg" role="status"></div>
 <div class="stack"><button class="btn ghost" id="out" type="button">Çıkış yap</button></div>
-<p class="foot">Bilgilerini yanlış girdiysen çıkış yapıp yeni bir hesap açabilirsin.</p>
+<p class="foot">Bilgilerini yanlış girdiysen yöneticiyle iletişime geç. E-postanı yukarıdan değiştirebilirsin.</p>
 </div></main>
 <script src="ortak.js"></script>
 <script type="module">
@@ -29,8 +29,8 @@ onAuthStateChanged(auth, u => {
   mountEmail($("mailBox"), u.uid);
   un = onSnapshot(doc(db, "users", u.uid), s => {
     const d = s.data(); if (!d) return;
-    $("wn").textContent = d.ad + " " + d.soyad; $("wo").textContent = d.okul; $("wb").textContent = d.brans || "-";
-    if (d.durum === "reddedildi") { $("bh").textContent = "Başvurun onaylanmadı"; $("bs").textContent = "Bilgilerini kontrol edip doğru okul ve e-posta ile yeniden kayıt olabilirsin. Bir yanlışlık olduğunu düşünüyorsan okul yöneticinle iletişime geç."; $("st").hidden = true; return; }
+    $("wn").textContent = d.ad + " " + d.soyad; $("wo").textContent = d.okul || d.okulYazilan || "-"; $("wb").textContent = d.brans || "-";
+    if (d.durum === "reddedildi") { $("bh").textContent = "Başvurun onaylanmadı"; $("bs").textContent = "Bilgilerini kontrol et. Bir yanlışlık olduğunu düşünüyorsan okulundaki yöneticiyle ya da proje ekibiyle iletişime geç."; $("st").hidden = true; return; }
     if (d.role !== "teacher") return location.replace("student.html");
     if (d.onayli === true) location.replace("teacher.html");
   }, () => show("Hesap bilgilerin okunamadı. Bağlantını kontrol edip sayfayı yenile."));
