@@ -44,7 +44,7 @@ const T = x => (x && x.toMillis ? x.toMillis() : typeof x === "number" ? x : 0);
 const hm = ms => new Date(ms).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
 const dayLabel = ms => { const d = new Date(ms), t = new Date(), y = new Date(t); y.setDate(t.getDate() - 1); const k = x => x.toDateString(); return k(d) === k(t) ? "Bugün" : k(d) === k(y) ? "Dün" : d.toLocaleDateString("tr-TR", { day: "numeric", month: "long" }); };
 
-let chats = {}, curId = null, msgs = [], nodes = new Map(), unsubMsg = null, hb = null, reply = null, pend = null, lastTyping = 0, firstLoad = true, lastDay = "", seen = {}, people = [];
+let chats = {}, curId = null, msgs = [], nodes = new Map(), unsubMsg = null, hb = null, reply = null, pend = null, lastTyping = 0, firstLoad = true, lastDay = "", seen = {}, people = [], dur = {}, unsubDur = null;
 const C = () => chats[curId];
 const other = c => c.uyeler.find(u => u !== me.uid);
 const title = c => c.tur === "dm" ? (c.uyeAd[other(c)] || "Sohbet") : c.ad;
@@ -52,6 +52,7 @@ const closed = c => c.kapali === true || (c.bitisTs && T(c.bitisTs) < Date.now()
 const unread = c => c.son && c.son.uid !== me.uid && T(c.sonTs) > T(c.okundu && c.okundu[me.uid]);
 const avc = (c, big) => { const a = el("div", "avc", c.tur === "dm" ? title(c).charAt(0).toLocaleUpperCase("tr") : "👥"); a.style.background = colorOf(c.tur === "dm" ? other(c) : c.id); return a; };
 const ref = () => doc(db, "sohbetler", curId);
+const durRef = () => doc(db, "sohbetler", curId, "durum", "anlik");   // çevrimiçi/yazıyor ayrı belgede: sohbet listesini ve rozeti gereksiz tetiklemesin
 
 /* ---------- Sohbet listesi ---------- */
 onSnapshot(query(collection(db, "sohbetler"), where("uyeler", "array-contains", me.uid)), snap => {
@@ -77,17 +78,18 @@ function renderList() {
 
 /* ---------- Sohbeti aç ---------- */
 function open(id) {
-  if (unsubMsg) unsubMsg(); clearInterval(hb);
+  if (unsubMsg) unsubMsg(); if (unsubDur) unsubDur(); dur = {}; clearInterval(hb);
   curId = id; msgs = []; nodes = new Map(); lastDay = ""; firstLoad = true; reply = null; pend = null;
   $("msgs").replaceChildren(); updReply(); updPv(); $("newp").hidden = true;
   $("app").classList.add("inchat"); $("emp").hidden = true; $("chat").hidden = false;
   const c = C(); $("ct").textContent = title(c); const a = avc(c); a.id = "cav"; $("cav").replaceWith(a);
   sub(); comp(); renderList();
+  unsubDur = onSnapshot(durRef(), s => { dur = s.exists() ? s.data() : {}; sub(); }, () => {});
   unsubMsg = onSnapshot(query(collection(db, "sohbetler", id, "mesajlar"), orderBy("ts", "desc"), limit(120)), snap => {
     msgs = snap.docs.map(d => ({ id: d.id, ...d.data({ serverTimestamps: "estimate" }), pending: d.metadata.hasPendingWrites })).reverse();
     paint(); markRead();
   }, e => toast("Mesajlar okunamadı: " + (e.code || e.message)));
-  beat(); hb = setInterval(beat, 20000);
+  beat(); hb = setInterval(beat, 60000);
 }
 $("cback").onclick = () => { $("app").classList.remove("inchat"); };
 
@@ -95,15 +97,15 @@ $("cback").onclick = () => { $("app").classList.remove("inchat"); };
 function sub() {
   const c = C(); if (!c) return; const now = Date.now(), others = c.uyeler.filter(u => u !== me.uid), s = $("cs"); s.className = "";
   if (closed(c)) return void (s.textContent = "Bu sohbet kapandı");
-  const typing = others.filter(u => now - T(c.yaziyor && c.yaziyor[u]) < 8000);
+  const typing = others.filter(u => now - T(dur.yaziyor && dur.yaziyor[u]) < 8000);
   if (typing.length) { s.className = "typing"; s.replaceChildren(el("span", "", c.tur === "dm" ? "yazıyor" : typing.map(u => (c.uyeAd[u] || "").split(" ")[0]).join(", ") + " yazıyor")); const d = el("span", "dots"); d.append(el("i"), el("i"), el("i")); s.append(d); return; }
-  const online = others.filter(u => now - T(c.aktif && c.aktif[u]) < 55000);
+  const online = others.filter(u => now - T(dur.aktif && dur.aktif[u]) < 150000);
   s.className = online.length ? "on" : "";
-  if (c.tur === "dm") { const t = T(c.aktif && c.aktif[others[0]]); s.textContent = online.length ? "çevrimiçi" : t ? "son görülme " + dayLabel(t).toLowerCase() + " " + hm(t) : "çevrimdışı"; }
+  if (c.tur === "dm") { const t = T(dur.aktif && dur.aktif[others[0]]); s.textContent = online.length ? "çevrimiçi" : t ? "son görülme " + dayLabel(t).toLowerCase() + " " + hm(t) : "çevrimdışı"; }
   else s.textContent = c.uyeler.length + " üye" + (online.length ? " · " + online.length + " çevrimiçi" : "");
 }
 setInterval(sub, 4000);
-function beat() { if (!curId || document.hidden || !C() || closed(C())) return; updateDoc(ref(), { ["aktif." + me.uid]: Date.now() }).catch(() => {}); }
+function beat() { if (!curId || document.hidden || !C() || closed(C())) return; setDoc(durRef(), { aktif: { [me.uid]: Date.now() } }, { merge: true }).catch(() => {}); }
 document.addEventListener("visibilitychange", () => { if (!document.hidden) { beat(); markRead(); } });
 
 /* ---------- Mesajları çiz ---------- */
@@ -189,7 +191,7 @@ $("pf").onchange = async () => {
 const grow = () => { const t = $("txt"); t.style.height = "auto"; t.style.height = Math.min(t.scrollHeight, 120) + "px"; };
 $("txt").oninput = () => {
   grow();
-  if (curId && Date.now() - lastTyping > 2500) { lastTyping = Date.now(); updateDoc(ref(), { ["yaziyor." + me.uid]: Date.now() }).catch(() => {}); }
+  if (curId && Date.now() - lastTyping > 2500) { lastTyping = Date.now(); setDoc(durRef(), { yaziyor: { [me.uid]: Date.now() } }, { merge: true }).catch(() => {}); }
 };
 $("txt").onkeydown = e => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); } };
 $("send").onclick = send;
@@ -200,8 +202,8 @@ async function send(over) {
   if (!custom) { $("txt").value = ""; grow(); pend = null; reply = null; updPv(); updReply(); lastTyping = 0; }
   const b = writeBatch(db);
   b.set(mref, m);
-  b.update(ref(), { son: { id: mref.id, uid: me.uid, ad: myName, metin: text || "Fotoğraf", foto: !!foto }, sonTs: serverTimestamp(), ["okundu." + me.uid]: serverTimestamp(), ["yaziyor." + me.uid]: 0 });
-  try { await b.commit(); } catch (e) { toast("Mesaj gönderilemedi: " + (e.code || e.message)); if (!custom) { $("txt").value = text; grow(); } }
+  b.update(ref(), { son: { id: mref.id, uid: me.uid, ad: myName, metin: text || "Fotoğraf", foto: !!foto }, sonTs: serverTimestamp(), ["okundu." + me.uid]: serverTimestamp() });
+  try { await b.commit(); setDoc(durRef(), { yaziyor: { [me.uid]: 0 } }, { merge: true }).catch(() => {}); } catch (e) { toast("Mesaj gönderilemedi: " + (e.code || e.message)); if (!custom) { $("txt").value = text; grow(); } }
 }
 $("lb").onclick = () => $("lb").hidden = true;
 
