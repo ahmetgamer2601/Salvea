@@ -19,6 +19,7 @@ function sim(a, b) {
   return r >= 0.8 ? r : 0;
 }
 function coverage(I, T) {
+  if (!I.length || !T.length) return 0;
   const total = T.reduce((a, t) => a + w(t), 0);
   let j = 0, cov = 0, used = 0;
   for (const x of I) {
