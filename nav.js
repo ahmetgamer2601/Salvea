@@ -33,16 +33,16 @@ const bump = (k, n) => { (window.__salveaBadge = window.__salveaBadge || {})[k] 
    Öğretmen: Panel · Görevler · Sohbet · Randevu · Menü (Keşfet, Kişiler, Program, Bilgi kartları, Çıkış) */
 export function mountNav(me, active) {
   if (document.querySelector(".dock")) return;
-  const t = me.role === "teacher", home = t ? "teacher.html" : "student.html";
+  const t = me.role === "teacher";
   const P = {
-    home: [t ? "Panel" : "Ana sayfa", home, ""],
-    akis: ["Keşfet", "akis.html", "Günün kartları ve yeni fikirler"],
-    kisi: ["Kişiler", "profil.html", "Okuldakilerle tanış"],
-    gorev: ["Görevler", "gorevler.html", ""],
-    program: ["Program", "program.html", "Ders ve çalışma planın"],
-    kultur: ["Bilgi kartları", "kultur.html", "Öğren, eğlen, tekrar et"],
-    sohbet: ["Sohbet", "sohbet.html", ""],
-    randevu: ["Randevu", "randevu.html", t ? "Randevuları yönet" : "Rehber öğretmenle görüş"]
+    home: [t ? "Panel" : "Ana sayfa", "#/home", ""],
+    akis: ["Keşfet", "#/akis", "Günün kartları ve yeni fikirler"],
+    kisi: ["Kişiler", "#/kisi", "Okuldakilerle tanış"],
+    gorev: ["Görevler", "#/gorev", ""],
+    program: ["Program", "#/program", "Ders ve çalışma planın"],
+    kultur: ["Bilgi kartları", "#/kultur", "Öğren, eğlen, tekrar et"],
+    sohbet: ["Sohbet", "#/sohbet", ""],
+    randevu: ["Randevu", "#/randevu", t ? "Randevuları yönet" : "Rehber öğretmenle görüş"]
   };
   const prim = t ? ["home", "gorev", "sohbet", "randevu"] : ["home", "akis", "gorev", "sohbet"];
   const more = t ? ["akis", "kisi", "program", "kultur"] : ["kisi", "program", "randevu", "kultur"];
@@ -50,14 +50,14 @@ export function mountNav(me, active) {
   const dock = el("nav", "dock"); dock.setAttribute("aria-label", "Ana gezinme");
   prim.forEach(k => {
     const a = el("a", "dk"); a.href = P[k][1]; a.innerHTML = svg(k) + "<span>" + P[k][0] + "</span>";
-    if (k === active) a.setAttribute("aria-current", "page");
+    (items[k] = items[k] || []).push(a);
     if (k in hosts) addBadge(k, a, P[k][0]);
     dock.append(a);
   });
 
   const mb = el("button", "dk mm"); mb.type = "button"; mb.innerHTML = svg("more") + "<span>Menü</span>";
   mb.setAttribute("aria-haspopup", "true"); mb.setAttribute("aria-expanded", "false"); mb.setAttribute("aria-controls", "navsheet");
-  if (more.includes(active)) mb.setAttribute("aria-current", "page");
+  menuKeys = more; menuBtn = mb;
   if (more.includes("randevu")) addBadge("randevu", mb, "Menü");
 
   const sheet = el("div", "sheet"); sheet.id = "navsheet"; sheet.hidden = true; sheet.setAttribute("role", "dialog"); sheet.setAttribute("aria-label", "Menü");
@@ -65,7 +65,7 @@ export function mountNav(me, active) {
   nm.textContent = t ? me.ad + " " + me.soyad : (me.takmaAd || me.ad); sc.textContent = me.okul || ""; who.append(nm, sc); sheet.append(who);
   more.forEach(k => {
     const a = el("a", "sh-i"); a.href = P[k][1]; a.innerHTML = svg(k) + "<span><b>" + P[k][0] + "</b><small>" + P[k][2] + "</small></span>";
-    if (k === active) a.setAttribute("aria-current", "page");
+    (items[k] = items[k] || []).push(a);
     if (k in hosts) addBadge(k, a, P[k][0]);
     sheet.append(a);
   });
@@ -83,11 +83,16 @@ export function mountNav(me, active) {
   dock.append(mb);
   document.body.classList.add("hasdock");
   document.body.append(dock, scrim, sheet);
-  // Başlıktaki eski "Çıkış yap" düğmesi artık Menü'de; kalabalık yapmasın
-  document.querySelectorAll(".top .btn").forEach(b => { if (/çıkış/i.test(b.textContent)) b.hidden = true; });
+  setActive(active);
+  watchChat(me);
+  watchRandevu(me);
+}
 
-  if (active !== "sohbet") watchChat(me);
-  if (active !== "randevu") watchRandevu(me);
+// Gezinme çubuğunda şu anki sayfayı işaretler (sayfalar kabuğun içinde değiştiği için çubuk yeniden kurulmaz)
+const items = {}; let menuKeys = [], menuBtn = null;
+export function setActive(key) {
+  Object.entries(items).forEach(([k, list]) => list.forEach(a => k === key ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current")));
+  if (menuBtn) { if (menuKeys.includes(key)) menuBtn.setAttribute("aria-current", "page"); else menuBtn.removeAttribute("aria-current"); }
 }
 
 // ---- Sohbet: okunmamış mesaj rozeti ve kısa bildirim
@@ -98,7 +103,7 @@ function watchChat(me) {
   onSnapshot(query(collection(db, "sohbetler"), where("uyeler", "array-contains", me.uid)), snap => {
     let n = 0; snap.forEach(d => { const c = est(d); if (unread(c)) n++; if (first && c.son) seen[d.id] = c.son.id; });
     setBadge("sohbet", n, "okunmamış"); bump("chat", n);
-    if (!first) snap.docChanges().forEach(ch => { if (ch.type === "removed") return; const c = est(ch.doc); if (unread(c) && c.son.id !== seen[ch.doc.id]) { seen[ch.doc.id] = c.son.id; toast("💬 " + (c.son.ad || "Yeni mesaj"), c.son.foto ? "📷 Fotoğraf" : (c.son.metin || ""), "sohbet.html"); } });
+    if (!first) snap.docChanges().forEach(ch => { if (ch.type === "removed") return; const c = est(ch.doc); if (unread(c) && c.son.id !== seen[ch.doc.id]) { seen[ch.doc.id] = c.son.id; if (window.__route !== "sohbet") toast("💬 " + (c.son.ad || "Yeni mesaj"), c.son.foto ? "📷 Fotoğraf" : (c.son.metin || ""), "#/sohbet"); } });
     first = false;
   }, () => {});
 }
@@ -106,19 +111,20 @@ function watchChat(me) {
 // ---- Randevu: öğretmende bekleyen talepler, öğrencide yanıt gelen talepler
 const SKEY = me => "salvea_rv_" + me.uid;
 const readSeen = me => { try { return JSON.parse(localStorage.getItem(SKEY(me)) || "{}"); } catch (_) { return {}; } };
-export function markRandevuSeen(me, list) { if (me.role === "teacher") return; const s = readSeen(me); list.forEach(r => s[r.id] = r.durum); try { localStorage.setItem(SKEY(me), JSON.stringify(s)); } catch (_) {} }
+let rvRows = [];
+const rvSay = me => { const t = me.role === "teacher", seen = t ? {} : readSeen(me); const n = t ? rvRows.filter(r => !isPast(r)).length : rvRows.filter(r => (r.durum === "onaylandi" || r.durum === "reddedildi") && seen[r.id] !== r.durum).length; setBadge("randevu", n, t ? "bekleyen talep" : "yeni yanıt"); bump("rv", n); };
+export function markRandevuSeen(me, list) { if (me.role === "teacher") return; const s = readSeen(me); list.forEach(r => s[r.id] = r.durum); try { localStorage.setItem(SKEY(me), JSON.stringify(s)); } catch (_) {} rvSay(me); }
 function watchRandevu(me) {
   const col = collection(db, "randevular"), t = me.role === "teacher", last = {}; let first = true;
-  const qy = t ? query(col, where("ogretmen", "==", me.uid), where("durum", "==", "bekliyor")) : query(col, where("ogrenci", "==", me.uid));
+  const qy = t ? query(col, where("ogretmen", "==", me.uid), where("durum", "==", "bekliyor")) : query(col, where("ogrenci", "==", me.uid), where("durum", "in", ["onaylandi", "reddedildi"]));
   onSnapshot(qy, snap => {
-    const rows = snap.docs.map(d => ({ id: d.id, ...d.data() })), seen = t ? {} : readSeen(me);
-    const n = t ? rows.filter(r => !isPast(r)).length : rows.filter(r => (r.durum === "onaylandi" || r.durum === "reddedildi") && seen[r.id] !== r.durum).length;
-    setBadge("randevu", n, t ? "bekleyen talep" : "yeni yanıt"); bump("rv", n);
+    const rows = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    rvRows = rows; rvSay(me);
     if (!first) rows.forEach(r => {
       if (last[r.id] === r.durum) return;
-      if (t && r.durum === "bekliyor") toast("📅 Yeni randevu talebi", r.ogrenciAd + " · " + GUN(r.tarih) + " " + r.saat, "randevu.html");
-      if (!t && r.durum === "onaylandi") toast("✅ Randevun onaylandı", GUN(r.tarih) + " " + r.saat + (r.yanit ? " · " + r.yanit : ""), "randevu.html");
-      if (!t && r.durum === "reddedildi") toast("Randevu talebin yanıtlandı", GUN(r.tarih) + " " + r.saat + (r.yanit ? " · " + r.yanit : ""), "randevu.html");
+      if (t && r.durum === "bekliyor") toast("📅 Yeni randevu talebi", r.ogrenciAd + " · " + GUN(r.tarih) + " " + r.saat, "#/randevu");
+      if (!t && r.durum === "onaylandi") toast("✅ Randevun onaylandı", GUN(r.tarih) + " " + r.saat + (r.yanit ? " · " + r.yanit : ""), "#/randevu");
+      if (!t && r.durum === "reddedildi") toast("Randevu talebin yanıtlandı", GUN(r.tarih) + " " + r.saat + (r.yanit ? " · " + r.yanit : ""), "#/randevu");
     });
     rows.forEach(r => last[r.id] = r.durum); first = false;
   }, () => {});
