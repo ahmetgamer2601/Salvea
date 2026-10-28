@@ -23,9 +23,9 @@ export function mountEmail(box, uid) {
 }
 
 // Yönetici bir uyarı bıraktıysa sayfanın üstünde gösterir
-export function warnBanner(me) {
-  if (!me.uyari) return;
-  const host = document.querySelector(".shell, .card"); if (!host) return;
+export function warnBanner(me, host = document.querySelector(".shell, .card")) {
+  if (!me.uyari || !host) return;
+  host.querySelectorAll(":scope > .warnin").forEach(x => x.remove());
   const b = document.createElement("div"); b.className = "warnin";
   const p = document.createElement("p"); p.textContent = me.uyari;
   const btn = document.createElement("button"); btn.type = "button"; btn.className = "link"; btn.textContent = "E-postamı değiştir";
