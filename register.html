@@ -64,7 +64,7 @@
 <li>Verileriniz, yasal bir zorunluluk olmadıkça reklam, pazarlama veya başka bir amaçla üçüncü kişilerle paylaşılmaz ve satılmaz.</li>
 </ul>
 <h4>7. Saklama süresi</h4>
-<p>Verileriniz hesabınız aktif olduğu sürece ve ilgili eğitim-öğretim yılının bitiminden sonra en geç bir yıl boyunca saklanır. Süre dolduğunda veya rızanızı geri çektiğinizde verileriniz silinir ya da anonim hale getirilir.</p>
+<p>Verileriniz hesabınız aktif olduğu sürece ve ilgili eğitim-öğretim yılının bitiminden sonra en geç bir yıl boyunca saklanır. Süre dolduğunda veya rızanızı geri çektiğinizde verileriniz silinir ya da anonim hale getirilir. Görev kanıtı olarak yüklenen görseller, görev onaylandıktan sonra en geç 14 gün içinde, onaylanmayanlar ise en geç 60 gün içinde; sohbette paylaşılan fotoğraflar ise 7 gün içinde otomatik olarak silinir.</p>
 <h4>8. Güvenlik tedbirleri</h4>
 <p>Veriler erişim kuralları, kimlik doğrulama ve şifreli bağlantı ile korunur. Rehber öğretmen hesapları, platform yöneticisi tarafından tek tek kontrol edilip onaylandıktan sonra açılır.</p>
 <h4>9. Haklarınız</h4>
@@ -92,7 +92,7 @@
 <li>Haftalık duygu durumu puanlarımın, iyi oluş anketi ve etkinlik arkadaşı tercihi yanıtlarımın, psikolojik nitelik taşıyabileceğini bilerek, rehber öğretmen tarafından değerlendirilmesine</li>
 <li>Rehber öğretmenin bu verilere ve gözlemlerine dayanarak etkinlik takımlarını oluşturmasına ve gerekli gördüğünde benimle birebir görüşme planlamasına</li>
 <li>Profilimde paylaştığım tanıtım, ilgi alanı ve isteğe bağlı fotoğrafımın rehber öğretmenler tarafından görülmesine; ilgi alanlarımın ve ilginç bilgimin takım arkadaşlarımla paylaşılmasına</li>
-<li>Görev kanıtı olarak yüklediğim etkinlik görsellerinin platformda saklanmasına</li>
+<li>Görev kanıtı olarak yüklediğim etkinlik görsellerinin platformda geçici olarak saklanmasına ve süre dolunca otomatik silinmesine</li>
 <li>Verilerimin Google Firebase altyapısında barındırılmasına ve bu nedenle yurt dışına aktarılabilmesine</li>
 </ul>
 <p>Rızamı dilediğim zaman, gerekçe göstermeden geri çekebileceğimi biliyorum. Bunun için okulun rehberlik servisine veya platform yöneticisine başvurmam yeterlidir. Rızanın geri çekilmesi, geri çekilene kadar yapılan işlemlerin hukuka uygunluğunu etkilemez. Rıza vermemem halinde Salvea hizmetinden yararlanamayacağımı, ancak bunun okul eğitimimi ve okuldaki haklarımı etkilemeyeceğini anlıyorum.</p>
@@ -211,7 +211,7 @@ window.salveaRegister = async () => {
     const cred = await createUserWithEmailAndPassword(auth, v("email"), $("pw").value);
     try {
       await updateProfile(cred.user, { displayName: v("ad") + " " + v("soyad") });
-      await setDoc(doc(db, "users", cred.user.uid), { ...profile, riza: { kvkk: true, acikRiza: true, kosul: true, surum: "1.1", tarih: serverTimestamp() }, olusturma: serverTimestamp() });
+      await setDoc(doc(db, "users", cred.user.uid), { ...profile, riza: { kvkk: true, acikRiza: true, kosul: true, surum: "1.2", tarih: serverTimestamp() }, olusturma: serverTimestamp() });
     } catch (e) { try { await cred.user.delete(); } catch (_) {} throw e; }   // profil yazılamazsa yarım hesap kalmasın, tekrar denenebilsin
     try { await sendEmailVerification(cred.user); } catch (_) {}
     for (const id of ["top", "f", "rf"]) $(id).hidden = true;
