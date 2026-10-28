@@ -31,8 +31,8 @@ onAuthStateChanged(auth, u => {
     const d = s.data(); if (!d) return;
     $("wn").textContent = d.ad + " " + d.soyad; $("wo").textContent = d.okul || d.okulYazilan || "-"; $("wb").textContent = d.brans || "-";
     if (d.durum === "reddedildi") { $("bh").textContent = "Başvurun onaylanmadı"; $("bs").textContent = "Bilgilerini kontrol et. Bir yanlışlık olduğunu düşünüyorsan okulundaki yöneticiyle ya da proje ekibiyle iletişime geç."; $("st").hidden = true; return; }
-    if (d.role !== "teacher") return location.replace("student.html");
-    if (d.onayli === true) location.replace("teacher.html");
+    if (d.role !== "teacher") return location.replace("app.html");
+    if (d.onayli === true) location.replace("app.html");
   }, () => show("Hesap bilgilerin okunamadı. Bağlantını kontrol edip sayfayı yenile."));
 });
 $("out").onclick = async () => { await signOut(auth); location.replace("index.html"); };
