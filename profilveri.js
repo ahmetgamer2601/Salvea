@@ -1,6 +1,7 @@
 import { db } from "./firebase.js";
 import { doc, getDoc } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 const cache = new Map();
+export const invalidateProfile = uid => { for (const k of [...cache.keys()]) if (k.startsWith(uid)) cache.delete(k); };
 // Bir öğrencinin profilini ve (izin varsa) fotoğrafını getirir. Erişim yoksa {denied:true} döner.
 export function getProfile(uid, asTeacher) {
   const k = uid + (asTeacher ? "|t" : "");
