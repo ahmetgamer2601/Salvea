@@ -16,7 +16,7 @@ export function guard(role) {
         if (user.email && me.email !== user.email) {
           try { await updateDoc(ref, me.uyari ? { email: user.email, uyari: deleteField() } : { email: user.email }); me.email = user.email; delete me.uyari; } catch (_) {}
         }
-        const home = me.role === "teacher" ? "teacher.html" : "student.html";
+        const home = "app.html";
         if (role === "admin") { if (me.admin !== true) return location.replace(home); }
         else {
           if (me.role === "teacher" && me.onayli !== true) return location.replace("bekle.html");
