@@ -1,2 +1,2 @@
-{ "name": "Salvea", "short_name": "Salvea", "id": "./", "start_url": "index.html", "scope": "./", "lang": "tr", "display": "standalone", "background_color": "#f4f0e4", "theme_color": "#1d3a2f",
+{ "name": "Salvea", "short_name": "Salvea", "id": "./", "start_url": "app.html", "scope": "./", "lang": "tr", "display": "standalone", "background_color": "#f4f0e4", "theme_color": "#1d3a2f",
   "icons": [ { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" }, { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" } ] }
