@@ -32,8 +32,8 @@ async function route(user) {
   if (!d) { await signOut(auth); return show("Bu hesaba ait profil bulunamadı. Yeniden kayıt olmayı dene."); }
   if (user.email && d.email !== user.email) { try { await updateDoc(doc(db, "users", user.uid), d.uyari ? { email: user.email, uyari: deleteField() } : { email: user.email }); } catch (_) {} }
   if (d.admin === true) location.replace("admin.html");
-  else if (d.role === "teacher") location.replace(d.onayli === true ? "teacher.html" : "bekle.html");
-  else location.replace("akis.html");
+  else if (d.role === "teacher") location.replace(d.onayli === true ? "app.html" : "bekle.html");
+  else location.replace("app.html");
 }
 let cur = null;
 onAuthStateChanged(auth, u => { cur = u; $("sess").hidden = !u; if (u) $("sm").textContent = u.email; });
