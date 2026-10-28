@@ -34,7 +34,7 @@ const { $, show, bad } = S;
 const el = (t, c, txt) => { const e = document.createElement(t); if (c) e.className = c; if (txt != null) e.textContent = txt; return e; };
 $("hi").textContent = "Merhaba, " + me.ad;
 $("out").onclick = async () => { await signOut(auth); location.replace("index.html"); };
-if (me.role === "teacher" && me.onayli) { const a = el("a", "btn ghost", "Öğretmen paneli"); a.href = "teacher.html"; a.style.cssText = "width:auto;padding:10px 18px;font-size:.9rem;text-decoration:none"; $("out").before(a); $("out").style.marginLeft = "0"; }
+if (me.role === "teacher" && me.onayli) { const a = el("a", "btn ghost", "Öğretmen paneli"); a.href = "app.html"; a.style.cssText = "width:auto;padding:10px 18px;font-size:.9rem;text-decoration:none"; $("out").before(a); $("out").style.marginLeft = "0"; }
 document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => document.querySelectorAll(".tabs button").forEach(x => { x.setAttribute("aria-selected", String(x === b)); $(x.dataset.tab).hidden = x !== b; }));
 
 let users = [], okullar = [];
