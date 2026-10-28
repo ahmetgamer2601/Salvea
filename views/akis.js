@@ -1,0 +1,120 @@
+// Görünüm: akis (app.js yönlendiricisi tarafından yüklenir)
+import { db } from "../firebase.js";
+import { SORULAR } from "../veri.js";
+import { BILGILER, IPUCLARI, CESARETLER, ATASOZLERI, KELIMELER, BUYA, QUIZ } from "../akisveri.js";
+import { getProfile, setAvatar } from "../profilveri.js";
+import { collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+
+export const html = `<header class="top"><div class="tile"><img src="logo.png" alt="Salvea"></div><div><b id="hi">Keşfet</b><span id="sc"></span></div></header>
+<div class="wk" id="fchips" role="group" aria-label="Kart türü"></div>
+<div class="feed" id="feed" tabindex="0" aria-label="Günün kartları"></div>`;
+export const max = "680px";
+
+export default async function mount(ctx) {
+  const me = ctx.me;
+  const $ = ctx.$, student = me.role === "student";
+  const el = (t, c, txt) => { const e = document.createElement(t); if (c) e.className = c; if (txt != null) e.textContent = txt; return e; };
+  $("sc").textContent = me.okul || "";
+
+  // Her gün ve her kullanıcı için aynı kalan, ertesi gün değişen sıra
+  const day = Math.floor((Date.now() - new Date().getTimezoneOffset() * 6e4) / 864e5);
+  let seed = [...me.uid].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, day);
+  const rnd = () => { seed = (seed + 0x6D2B79F5) >>> 0; let t = seed; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  const shuffle = a => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+
+  // Bugünkü etkileşimler (yaptım işareti gibi) yalnızca bu cihazda tutulur; eski günlerin kayıtları silinir
+  const PRE = "salvea_akis_" + me.uid + "_", DKEY = PRE + day;
+  let st = {}; try { st = JSON.parse(localStorage.getItem(DKEY) || "{}"); for (const k of Object.keys(localStorage)) if (k.startsWith(PRE) && k !== DKEY) localStorage.removeItem(k); } catch (_) {}
+  const put = (k, v) => { st[k] = v; try { localStorage.setItem(DKEY, JSON.stringify(st)); } catch (_) {} };
+
+  const card = (kat, cls, ...kids) => { const c = el("section", "fcard " + cls); c.dataset.kat = kat; c.append(...kids); return c; };
+  const tag = t => el("small", "ftag", t);
+  const cta = (txt, href) => { const a = el("a", "btn sm fcta", txt); a.href = href; a.style.textDecoration = "none"; return a; };
+
+  let myProf = null, people = [], goal = null;
+  if (student) {
+    try { myProf = (await getProfile(me.uid)); if (myProf.empty || myProf.denied) myProf = null; } catch (_) {}
+    try { people = (await getDocs(query(collection(db, "profiller"), where("okulId", "==", me.okulId), where("herkeseAcik", "==", true)))).docs.map(d => ({ uid: d.id, ...d.data() })).filter(p => p.uid !== me.uid); } catch (_) {}
+  }
+  if (me.okulId) try { const d = (await getDocs(query(collection(db, "donemler"), where("okulId", "==", me.okulId)))).docs.map(x => x.data()).find(x => x.aktif); if (d && d.hedefPuan) goal = d; } catch (_) {}
+
+  /* ---------- Kart türleri ---------- */
+  const intro = () => { const g = new Date().getHours(); return card("all", "c-intro", tag(new Date().toLocaleDateString("tr-TR", { weekday: "long", day: "numeric", month: "long" })), el("h2", "", (g < 12 ? "Günaydın" : g < 18 ? "Merhaba" : "İyi akşamlar") + ", " + (me.takmaAd || me.ad)), el("p", "", "Bugünün kartları hazır. Kaydırarak göz at ya da yukarıdan türü seç. Bilgi, quiz, kısa sorular, mola ve tanışacağın insanlar burada."), el("span", "fhint", "↓ Aşağı kaydır")); };
+  const soru = t => card("eglen", "c-soru", tag("Günün sorusu"), el("p", "fbig", t), el("p", "", "Kendi cevabını düşün, sonra takım arkadaşlarına sor."), cta("Takım sohbetine git", "sohbet.html"));
+  const bilgi = t => card("bilgi", "c-bilgi", tag("Biliyor muydun?"), el("p", "fbig", t));
+  const ipucu = ([b, t]) => card("iyi", "c-ipucu", tag("Kısa not"), el("h2", "", b), el("p", "", t));
+  const kelime = ([k, a]) => card("bilgi", "c-kelime", tag("Günün kelimesi"), el("h2", "", k), el("p", "fbig", a));
+  const atasozu = ([s, a]) => card("bilgi", "c-atasozu", tag("Atasözü"), el("p", "fbig", "“" + s + "”"), el("p", "", a));
+  const cesaret = t => {
+    const k = "ces:" + t.slice(0, 30), b = el("button", "fdone", st[k] ? "✓ Yaptım" : "Yaptım mı?"); b.type = "button"; b.setAttribute("aria-pressed", String(!!st[k]));
+    b.onclick = () => { const v = !st[k]; put(k, v); b.setAttribute("aria-pressed", String(v)); b.textContent = v ? "✓ Yaptım" : "Yaptım mı?"; ok.textContent = v ? "Harika, güzel bir adım. 🎉" : "Küçük bir adım. Kimseye söylemek zorunda değilsin."; };
+    const ok = el("p", "", st[k] ? "Harika, güzel bir adım. 🎉" : "Küçük bir adım. Kimseye söylemek zorunda değilsin.");
+    return card("iyi", "c-cesaret", tag("Bugünün mini cesareti"), el("p", "fbig", t), ok, b);
+  };
+  const quiz = q => {
+    const w = el("div", "qopts"), ex = el("p", "qexp"); ex.hidden = true;
+    shuffle(q.o.map((t, i) => i)).forEach(i => {
+      const b = el("button", "qopt", q.o[i]); b.type = "button";
+      b.onclick = () => { [...w.children].forEach(x => { x.disabled = true; if (+x.dataset.i === q.d) x.classList.add("ok"); else if (x === b) x.classList.add("no"); }); ex.textContent = (i === q.d ? "Doğru! " : "Olmadı, sorun değil. ") + q.a; ex.hidden = false; };
+      b.dataset.i = i; w.append(b);
+    });
+    return card("bilgi", "c-quiz", tag("Mini quiz"), el("p", "fbig", q.s), w, ex);
+  };
+  const buya = ([a, b]) => {
+    const w = el("div", "qopts"), n = el("p", "qexp"); n.hidden = true;
+    [a, b].forEach(t => { const x = el("button", "qopt", t); x.type = "button"; x.onclick = () => { [...w.children].forEach(y => y.disabled = true); x.classList.add("ok"); n.textContent = "Güzel seçim! Takım arkadaşların hangisini seçerdi, sor bakalım."; n.hidden = false; }; w.append(x); });
+    return card("eglen", "c-buya", tag("Bu mu, şu mu?"), el("p", "fbig", "Hangisini seçerdin?"), w, n, cta("Takım sohbetine git", "sohbet.html"));
+  };
+  const nefes = () => {
+    const o = el("div", "breath"), tx = el("span", "", "Nefes al"), c = card("iyi", "c-nefes", tag("1 dakikalık mola"), o, el("p", "", "4 saniye al, 4 saniye tut, 4 saniye ver."));
+    o.append(tx); const w = ["Nefes al", "Tut", "Nefes ver"]; let i = 0; const t = ctx.every(() => { if (!c.isConnected) return clearInterval(t); i = (i + 1) % 3; tx.textContent = w[i]; }, 4000); return c;
+  };
+  const hedef = () => { const p = Math.min(100, Math.round((goal.toplamPuan || 0) / goal.hedefPuan * 100)), b = el("div", "pbar"), i = el("i"); i.style.width = p + "%"; b.append(i); return card("all", "c-hedef", tag("Okulun ortak hedefi"), el("p", "fbig", "%" + p), b, el("p", "", "Tüm takımlar birlikte " + (goal.toplamPuan || 0) + " / " + goal.hedefPuan + " puana ulaştı. Yarışmıyoruz, birlikte ilerliyoruz."), cta("Görevlere git", "gorevler.html")); };
+  const tanis = p => {
+    const mine = new Set((myProf && myProf.ilgiler) || []), ortak = (p.ilgiler || []).filter(x => mine.has(x)), av = el("div", "av"), ch = el("div", "chips");
+    setAvatar(av, null, p.takmaAd); getProfile(p.uid).then(x => x.foto && setAvatar(av, x.foto, p.takmaAd));
+    (p.ilgiler || []).slice(0, 5).forEach(x => ch.append(el("i", ortak.includes(x) ? "on" : "", x)));
+    return card("tanis", "c-tanis", tag(ortak.length ? "Ortak noktanız var" : "Tanış"), av, el("h2", "", p.takmaAd || "Öğrenci"), el("p", "hint", p.sinif ? p.sinif + ". sınıf" : ""),
+      ortak.length ? el("p", "", "Seninle " + ortak.length + " ortak ilgisi var: " + ortak.join(", ") + ".") : el("p", "", (p.tanitim || "").slice(0, 120)), ch, cta("Profile bak", "profil.html?u=" + p.uid));
+  };
+  const davet = () => card("tanis", "c-davet", tag("Sen de görün"), el("h2", "", "Profilini paylaş, tanışmalar başlasın"), el("p", "", "Profilin sadece okulundaki öğrencilere, istediğin bilgilerle görünür. İstediğin an kapatabilirsin."), cta("Profilini düzenle", "student.html"));
+
+  /* ---------- Akışı kur ---------- */
+  const P = { bilgi: shuffle(BILGILER), quiz: shuffle(QUIZ), kelime: shuffle(KELIMELER), atasozu: shuffle(ATASOZLERI), buya: shuffle(BUYA), ipucu: shuffle(IPUCLARI), cesaret: shuffle(CESARETLER), soru: shuffle(SORULAR) }, ptr = {};
+  const next = k => { ptr[k] = ptr[k] || 0; return P[k][ptr[k]++ % P[k].length]; };
+  const myInt = () => (myProf && myProf.ilgiler) || [];
+  const tn = shuffle(people.filter(p => (p.ilgiler || []).length)).sort((a, b) => ((b.ilgiler || []).filter(x => myInt().includes(x)).length > 0) - ((a.ilgiler || []).filter(x => myInt().includes(x)).length > 0)).slice(0, 6);
+  const MK = {
+    bilgi: () => bilgi(next("bilgi")), quiz: () => quiz(next("quiz")), kelime: () => kelime(next("kelime")), atasozu: () => atasozu(next("atasozu")),
+    buya: () => buya(next("buya")), ipucu: () => ipucu(next("ipucu")), cesaret: () => cesaret(next("cesaret")), nefes: () => nefes(),
+    hedef: () => goal && hedef(), tanis: () => { const p = tn.shift(); return p && tanis(p); },
+    davet: () => student && !(myProf && myProf.herkeseAcik) && davet()
+  };
+  const ILK = ["bilgi", "quiz", "tanis", "ipucu", "buya", "bilgi", "kelime", "cesaret", "tanis", "atasozu", "bilgi", "quiz", "nefes", "ipucu", "buya", "tanis", "kelime", "bilgi", "hedef", "atasozu", "cesaret", "tanis", "ipucu", "davet", "quiz", "bilgi"];
+  const DAHA = ["bilgi", "quiz", "buya", "ipucu", "bilgi", "kelime", "cesaret", "atasozu", "quiz", "bilgi", "ipucu", "buya"];
+
+  let kat = "";
+  const KATS = [["", "Hepsi"], ["bilgi", "Bilgi"], ["eglen", "Eğlen"], ["iyi", "İyi hisset"], ["tanis", "Tanış"]];
+  const vis = c => !kat || c.dataset.kat === kat;
+  function chips() { $("fchips").replaceChildren(...KATS.map(([k, t]) => { const b = el("button", "chip", t); b.type = "button"; b.setAttribute("aria-pressed", String(kat === k)); b.onclick = () => { kat = k; chips(); apply(); }; return b; })); }
+  function apply() {
+    const cs = [...$("feed").children].filter(c => !c.classList.contains("fbos")); cs.forEach(c => c.hidden = !vis(c));
+    const bos = $("feed").querySelector(".fbos"); if (bos) bos.hidden = cs.some(c => !c.hidden);
+    $("feed").scrollTo({ top: 0 });
+  }
+  const bitis = () => {
+    const more = el("button", "btn sm fcta", "Daha fazla kart göster"); more.type = "button"; more.onclick = daha;
+    return card("all", "c-bitis", tag("Bugünlük bu kadar"), el("h2", "", "Yarın yeni kartlar gelir"), el("p", "", "İstersen şimdi birkaç kart daha açabilir, bir görev yapabilir ya da bilgi kartlarıyla oynayabilirsin."), more, cta("Bilgi kartları", "kultur.html"));
+  };
+  function daha() {
+    const end = $("feed").querySelector("[data-kat=all].c-bitis"), cs = DAHA.map(k => MK[k]()).filter(Boolean);
+    cs.forEach(c => { c.hidden = !vis(c); end.before(c); });
+    const f = cs.find(c => !c.hidden); if (f) f.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  const bos = el("div", "empty fbos", "Bu türde şu an gösterilecek kart yok."); bos.hidden = true;
+  const cards = [intro(), soru(next("soru"))];
+  ILK.forEach(k => { const c = MK[k](); if (c) cards.push(c); });
+  cards.push(bitis(), bos);
+  $("feed").replaceChildren(...cards); chips();
+  ctx.on(document, "keydown", e => { if (/INPUT|TEXTAREA|SELECT|BUTTON/.test(e.target.tagName)) return; const f = $("feed"); if (e.key === "ArrowDown") { e.preventDefault(); f.scrollBy({ top: f.clientHeight, behavior: "smooth" }); } if (e.key === "ArrowUp") { e.preventDefault(); f.scrollBy({ top: -f.clientHeight, behavior: "smooth" }); } });
+}
