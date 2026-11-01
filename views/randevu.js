@@ -1,5 +1,6 @@
 // Görünüm: randevu (app.js yönlendiricisi tarafından yüklenir)
 import { db } from "../firebase.js";
+import { bildir } from "../push.js";
 import { markRandevuSeen } from "../nav.js";
 import { getProfile, setAvatar } from "../profilveri.js";
 import { collection, query, where, getDocs, getDoc, doc, setDoc, addDoc, updateDoc, deleteDoc, writeBatch, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
@@ -115,8 +116,8 @@ export default async function mount(ctx) {
         if (rand.some(x => x.tarih === r.tarih && x.saat === r.saat && x.durum === "onaylandi")) return show("Bu saat zaten dolu.");
         const b = writeBatch(db); b.update(doc(db, "randevular", r.id), { durum: "onaylandi", yanit: yi.value.trim() });
         rand.filter(x => x.id !== r.id && x.tarih === r.tarih && x.saat === r.saat && x.durum === "bekliyor").forEach(x => { b.update(doc(db, "randevular", x.id), { durum: "reddedildi", yanit: "Bu saat başka bir görüşme için ayrıldı." }); x.durum = "reddedildi"; });
-        await b.commit(); r.durum = "onaylandi"; await syncDolu(r.tarih); show("Randevu onaylandı.", true); draw(); });
-      no.onclick = () => run(no, "…", async () => { await updateDoc(doc(db, "randevular", r.id), { durum: "reddedildi", yanit: yi.value.trim() }); r.durum = "reddedildi"; draw(); });
+        await b.commit(); r.durum = "onaylandi"; bildir("randevu", { id: r.id }); await syncDolu(r.tarih); show("Randevu onaylandı.", true); draw(); });
+      no.onclick = () => run(no, "…", async () => { await updateDoc(doc(db, "randevular", r.id), { durum: "reddedildi", yanit: yi.value.trim() }); r.durum = "reddedildi"; bildir("randevu", { id: r.id }); draw(); });
       acts.append(ok, no); c.append(acts); parts.push(c);
     });
     return parts;
@@ -188,7 +189,7 @@ export default async function mount(ctx) {
         const p = el("div", "gor"), ta = el("textarea"), go = el("button", "btn sm", "Randevu talep et"); ta.rows = 2; ta.maxLength = 200; ta.placeholder = "Ne hakkında konuşmak istersin? (isteğe bağlı)"; go.type = "button"; go.style.marginTop = "10px";
         go.onclick = () => run(go, "Gönderiliyor…", async () => {
           const d = { okulId: me.okulId, ogretmen: tSel, ogretmenAd: (ogrt.find(o => o.uid === tSel) || {}).ad || "", ogrenci: me.uid, ogrenciAd: me.takmaAd ? me.ad + " " + me.soyad : me.ad + " " + me.soyad, sinif: me.sinif + "-" + me.sube, tur: "randevu", not: ta.value.trim(), tarih: sel.date, saat: sel.saat, durum: "bekliyor", olusturma: serverTimestamp() };
-          const r = await addDoc(collection(db, "randevular"), d); rand.push({ id: r.id, ...d }); sel = null; show("Talebin rehber öğretmenine gönderildi.", true); draw(); });
+          const r = await addDoc(collection(db, "randevular"), d); rand.push({ id: r.id, ...d }); bildir("randevu", { id: r.id }); sel = null; show("Talebin rehber öğretmenine gönderildi.", true); draw(); });
         p.append(el("h3", "", fmtL(sel.date) + " · " + sel.saat), ta, go); parts.push(p);
       }
     }
