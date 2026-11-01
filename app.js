@@ -1,6 +1,7 @@
 // Salvea uygulama kabuğu: giriş bir kez doğrulanır, gezinme çubuğu hep yerinde kalır, sayfalar kabuğun içinde değişir.
 import { guard } from "./guard.js";
 import { mountNav, setActive } from "./nav.js";
+import { ayarYukle } from "./ayar.js";
 import { onSnapshot } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
 const $g = id => document.getElementById(id);
@@ -13,12 +14,14 @@ const ROTA = {
   program: { key: "program", baslik: "Program", mod: () => import("./views/program.js") },
   kultur: { key: "kultur", baslik: "Bilgi kartları", mod: () => import("./views/kultur.js") },
   sohbet: { key: "sohbet", baslik: "Sohbet", mod: () => import("./views/sohbet.js") },
-  randevu: { key: "randevu", baslik: "Randevu", mod: () => import("./views/randevu.js") }
+  randevu: { key: "randevu", baslik: "Randevu", mod: () => import("./views/randevu.js") },
+  ayarlar: { key: "ayarlar", baslik: "Ayarlar", mod: () => import("./views/ayarlar.js") }
 };
 // Eski .html bağlantıları (sayfa içi kartlar, geri düğmeleri) kabuk içinde açılır
 const ESKI = { akis: "akis", profil: "kisi", gorevler: "gorev", program: "program", kultur: "kultur", sohbet: "sohbet", randevu: "randevu", student: "home", teacher: "home" };
 
 const me = await guard();
+ayarYukle(me.uid);
 let tok = 0, temizlik = [];
 const durdur = () => { temizlik.splice(0).forEach(f => { try { f(); } catch (_) {} }); };
 const ayril = (t, f) => t === tok ? temizlik.push(f) : f();   // sayfa terk edildiyse geç kayıtlar hemen temizlenir
@@ -72,5 +75,7 @@ document.addEventListener("click", e => {
   e.preventDefault(); go(ESKI[m[1]], m[2] ? m[2].slice(1) : "");
 });
 window.addEventListener("hashchange", render);
+// Telefondaki bildirime dokunulunca uygulama zaten açıksa ilgili sayfaya geç
+if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", e => { const g = e.data && e.data.git; if (g && g.startsWith("#/")) { if (location.hash === g) render(); else location.hash = g; } });
 mountNav(me, (ROTA[ayir().rota] || ROTA[varsayilan]).key);
 render();
