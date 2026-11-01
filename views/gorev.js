@@ -1,5 +1,6 @@
 // Görünüm: gorevler (app.js yönlendiricisi tarafından yüklenir)
 import { db } from "../firebase.js";
+import { bildir } from "../push.js";
 import { resizeFit, indir } from "../foto.js";
 import { GOREVLER, SEVIYE } from "../gorevler.js";
 import { collection, query, where, getDocs, getDoc, doc, setDoc, updateDoc, deleteDoc, writeBatch, runTransaction, increment, deleteField, Timestamp, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
@@ -87,7 +88,7 @@ export default async function mount(ctx) {
             b.set(doc(db, "gorevKanitlari", id), meta);
             b.set(doc(db, "kanitFotolari", id), { okulId: me.okulId, foto, silinmeTs: st, ts: serverTimestamp() });
             await b.commit();
-            fc[id] = Promise.resolve(foto); kn = kn.filter(x => x.atamaId !== g.id).concat({ id, ...meta }); show("Kanıtın öğretmene gönderildi.", true); draw(); });
+            bildir("kanitGonder", { id }); fc[id] = Promise.resolve(foto); kn = kn.filter(x => x.atamaId !== g.id).concat({ id, ...meta }); show("Kanıtın öğretmene gönderildi.", true); draw(); });
           c.append(lb, f, nt, sk, go);
         }
         parts.push(c);
@@ -129,9 +130,9 @@ export default async function mount(ctx) {
               tx.update(doc(db, "donemler", k.donemId), { toplamPuan: increment(p) });
               if (fs && fs.exists()) tx.update(fr, { silinmeTs: st });
             });
-            k.durum = "onaylandi"; k.puan = p; k.yorum = yo.value.trim(); k.silinmeTs = st; show("Onaylandı, takıma " + p + " puan verildi. Fotoğraf " + ONAY_SONRA_GUN + " gün sonra otomatik silinecek; istersen şimdi indirebilirsin.", true); draw(); });
+            k.durum = "onaylandi"; k.puan = p; k.yorum = yo.value.trim(); k.silinmeTs = st; bildir("kanit", { id: k.id }); show("Onaylandı, takıma " + p + " puan verildi. Fotoğraf " + ONAY_SONRA_GUN + " gün sonra otomatik silinecek; istersen şimdi indirebilirsin.", true); draw(); });
           no.onclick = () => run(no, "…", async () => { if (!yo.value.trim()) { yo.classList.add("bad"); return show("Tekrar istiyorsan kısa bir yorum yaz."); }
-            await updateDoc(doc(db, "gorevKanitlari", k.id), { durum: "tekrar", yorum: yo.value.trim() }); k.durum = "tekrar"; draw(); });
+            await updateDoc(doc(db, "gorevKanitlari", k.id), { durum: "tekrar", yorum: yo.value.trim() }); k.durum = "tekrar"; bildir("kanit", { id: k.id }); draw(); });
           return c;
         }));
       } else if (tab === "ata") {
@@ -139,7 +140,7 @@ export default async function mount(ctx) {
         const assign = async (g, bitis) => {
           const id = g.id ? donem.id + "_" + g.id : donem.id + "_ozel_" + Date.now().toString(36);   // aynı görev aynı döneme iki kez atanamaz
           if (atn.some(a => a.id === id)) return show("Bu görev bu döneme zaten atanmış.");
-          await setDoc(doc(db, "atananGorevler", id), { okulId: me.okulId, donemId: donem.id, gorevId: g.id || "ozel", baslik: g.baslik, aciklama: g.aciklama, seviye: g.seviye, sure: g.sure, puan: g.puan, roller: g.roller || [], kanit: g.kanit || "", bitis: bitis || donem.bitis || "", olusturan: me.uid, olusturma: serverTimestamp() });
+          await setDoc(doc(db, "atananGorevler", id), { okulId: me.okulId, donemId: donem.id, gorevId: g.id || "ozel", baslik: g.baslik, aciklama: g.aciklama, seviye: g.seviye, sure: g.sure, puan: g.puan, roller: g.roller || [], kanit: g.kanit || "", bitis: bitis || donem.bitis || "", olusturan: me.uid, olusturma: serverTimestamp() }); bildir("gorev", { id });
           atn = await q("atananGorevler", ["okulId", "==", me.okulId]); show("“" + g.baslik + "” bu dönemdeki tüm takımlara atandı.", true); draw(); };
         const parts = [el("p", "hint", "Seçtiğin görev, " + donem.ad + " dönemindeki tüm takımlara atanır. İlk dönemlerde Seviye 1–2 ile başlamanı, sohbet gerektiren görevleri sonraya bırakmanı öneririz.")];
         const cf = el("details", "doc"); cf.style.margin = "0 0 18px"; cf.append(el("summary", "", "+ Kendi görevini yaz"));
