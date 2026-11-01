@@ -1,5 +1,6 @@
 // Görünüm: akis (app.js yönlendiricisi tarafından yüklenir)
 import { db } from "../firebase.js";
+import { durum as pushDurum } from "../push.js";
 import { SORULAR } from "../veri.js";
 import { BILGILER, IPUCLARI, CESARETLER, ATASOZLERI, KELIMELER, BUYA, QUIZ } from "../akisveri.js";
 import { getProfile, setAvatar } from "../profilveri.js";
@@ -112,7 +113,10 @@ export default async function mount(ctx) {
     const f = cs.find(c => !c.hidden); if (f) f.scrollIntoView({ behavior: "smooth", block: "start" });
   }
   const bos = el("div", "empty fbos", "Bu türde şu an gösterilecek kart yok."); bos.hidden = true;
+  let pd = null; try { pd = await pushDurum(me); } catch (_) {}
+  const bildirimKart = () => card("all", "c-davet", tag("Bildirimler"), el("h2", "", "Mesajları ve görevleri kaçırma"), el("p", "", "Telefonuna bildirim gelsin: yeni mesaj, görev, program ve randevu haberleri uygulama kapalıyken bile ulaşsın. İstediğin türleri açıp kapatabilirsin."), cta("Bildirimleri aç", "#/ayarlar"));
   const cards = [intro(), soru(next("soru"))];
+  if (pd && pd.hazir && !pd.abone && pd.izin !== "denied" && (pd.destek || pd.ios)) cards.push(bildirimKart());
   ILK.forEach(k => { const c = MK[k](); if (c) cards.push(c); });
   cards.push(bitis(), bos);
   $("feed").replaceChildren(...cards); chips();
