@@ -1,5 +1,6 @@
 // Görünüm: program (app.js yönlendiricisi tarafından yüklenir)
 import { db } from "../firebase.js";
+import { bildir } from "../push.js";
 import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
 export const html = `<header class="top"><div class="tile"><img src="logo.png" alt="Salvea"></div><div><b id="hi">Yükleniyor…</b><span id="sc"></span></div></header>
@@ -159,8 +160,9 @@ export default async function mount(ctx) {
         const data = { okulId: me.okulId, ad: f.ad.trim(), tur: f.tur, kapsam: f.k === "okul" ? "okul" : f.k === "sinif" ? "sinif:" + f.sinif : "kisi", ogrenciler: f.k === "kisi" ? f.uids : [],
           satirlar: f.satirlar.map(({ id, gun, bas, bit, ders, konu, tur }) => ({ id, gun, bas, bit, ders: ders.trim(), konu: (konu || "").trim(), tur })).sort((a, b) => a.gun - b.gun || a.bas.localeCompare(b.bas)),
           not: f.not.trim(), olusturan: me.uid, olusturanAd: me.ad + " " + me.soyad, guncelleme: serverTimestamp() };
-        if (f.id) { await updateDoc(doc(db, "programlar", f.id), data); list = list.map(x => x.id === f.id ? { id: f.id, ...data } : x); }
-        else { data.olusturma = serverTimestamp(); const r = await addDoc(collection(db, "programlar"), data); list.push({ id: r.id, ...data }); }
+        let pid = f.id; if (f.id) { await updateDoc(doc(db, "programlar", f.id), data); list = list.map(x => x.id === f.id ? { id: f.id, ...data } : x); }
+        else { data.olusturma = serverTimestamp(); const r = await addDoc(collection(db, "programlar"), data); pid = r.id; list.push({ id: r.id, ...data }); }
+        if (!f.id || confirm("Program güncellendi. Öğrencilere bildirim gönderilsin mi?")) bildir("program", { id: pid });
         ed = null; show("Program kaydedildi.", true); draw();
       });
       const ac = el("div", "addrow"); ac.style.marginTop = "18px"; ac.append(sv, cn); parts.push(ac);
