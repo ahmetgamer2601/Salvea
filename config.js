@@ -1,6 +1,5 @@
-// Bildirim sunucusu ayarı. PUSH-KURULUM.md rehberindeki adımlardan sonra iki değeri doldur.
-// Boş kalırsa uygulama çalışmaya devam eder, yalnızca Ayarlar'daki bildirim bölümü "kurulmadı" der.
+
 export const PUSH = {
-  sunucu: "",   // örn. "https://salvea-bildirim.KULLANICI.workers.dev"
-  vapid: ""     // tools/vapid.html'in verdiği AÇIK anahtar
+  sunucu: "https://salvea-bildirim.ahmett01266.workers.dev/",   // örn. "https://salvea-bildirim.KULLANICI.workers.dev"
+  vapid: "BMb5PNEhn6xYQ85he5ZHUIucv-fBQC03haMsc05qXG9GRr4zjW8eIeY1XjmNMjQCKYI5xd-kllMJtEkak-NXsUo"     // tools/vapid.html'in verdiği AÇIK anahtar
 };
