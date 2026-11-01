@@ -19,11 +19,21 @@ export default async function mount(ctx) {
 
   async function mine() { const p = await getProfile(me.uid, teacher); return p.empty || p.denied ? { ilgiler: [] } : p; }
 
+  /* ---------- Öğretmen profili ---------- */
+  function ogretmenGoster(u, t, back) {
+    const parts = [back], head = el("div", "pf"), av = el("div", "av"), i = el("div"); setAvatar(av, t.foto, t.ad);
+    const nm = el("b", "", t.ad); nm.style.cssText = "font-family:var(--serif);font-size:1.6rem;font-weight:500;display:block"; i.append(nm, el("small", "hint", t.brans || "Rehber öğretmen")); head.append(av, i); parts.push(head);
+    if (t.tanitim) parts.push(el("h2", "s", "Hakkında"), el("p", "", t.tanitim));
+    if (u !== me.uid) { const a = el("a", "btn sm", "Mesaj yaz"); a.href = "sohbet.html?dm=" + encodeURIComponent(u); a.style.cssText = "text-decoration:none;display:inline-block;margin-top:18px"; parts.push(a); }
+    $("app").replaceChildren(...parts);
+  }
+
   /* ---------- Tek profil ---------- */
   async function one(u) {
     $("hi").textContent = "Profil";
     const [p, my] = await Promise.all([getProfile(u, teacher), mine()]);
     const back = el("a", "link", "← Tüm kişiler"); back.href = "profil.html";
+    if (p.denied || p.empty) { let t = null; try { const d = await getDoc(doc(db, "ogretmenler", u)); if (d.exists()) t = d.data(); } catch (_) {} if (t) return ogretmenGoster(u, t, back); }
     if (p.denied) return $("app").replaceChildren(back, empty(u === me.uid ? "Profilin okunamadı." : "Bu kişi profilini paylaşmamış."));
     if (p.empty) return $("app").replaceChildren(back, empty("Bu kişi henüz profilini doldurmamış."));
     let ad = p.takmaAd || "Öğrenci", alt = p.sinif ? p.sinif + ". sınıf" : "";
@@ -39,6 +49,7 @@ export default async function mount(ctx) {
     if ((p.aktiviteler || []).length) { const c = el("div", "chips"); p.aktiviteler.forEach(x => c.append(el("i", "", x))); sec("Birlikte yapmak istedikleri", c); }
     if (p.bilgi) sec("İlginç bir şey", el("p", "", p.bilgi));
     if (u === me.uid) { const a = el("a", "btn sm", "Profilimi düzenle"); a.href = "student.html"; a.style.cssText = "text-decoration:none;display:inline-block;margin-top:18px"; parts.push(a); }
+    else if (teacher) { const a = el("a", "btn sm", "Mesaj yaz"); a.href = "sohbet.html?dm=" + encodeURIComponent(u); a.style.cssText = "text-decoration:none;display:inline-block;margin-top:18px"; parts.push(a); }
     else if (!teacher) { const n = el("p", "hint", "Bir sorun mu var? Rehber öğretmenine sohbetten yazabilirsin."); n.style.marginTop = "22px"; const a = el("a", "link", "Sohbete git"); a.href = "sohbet.html"; n.append(" ", a); parts.push(n); }
     $("app").replaceChildren(...parts);
   }
