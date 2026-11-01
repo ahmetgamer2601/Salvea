@@ -1,5 +1,6 @@
 // Görünüm: student (app.js yönlendiricisi tarafından yüklenir)
 import { auth, db } from "../firebase.js";
+import { bildir } from "../push.js";
 import { warnBanner } from "../eposta.js";
 import { ILGILER, AKTIVITELER, SORULAR, isoWeek } from "../veri.js";
 import { signOut } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
@@ -168,7 +169,7 @@ export default async function mount(ctx) {
       hs.forEach(c => { const r = el("div", "hist"), tr = el("div", "tr"), i = el("i"); i.style.width = c.yalniz * 10 + "%"; tr.append(i); r.append(el("span", "", c.hafta), tr, el("span", "", String(c.yalniz))); hc.append(r); }); parts.push(hc); }
     const hp = el("div", "q"), ta = el("textarea"), hb = el("button", "btn sm", "Rehber öğretmenimle konuşmak istiyorum");
     ta.rows = 2; ta.maxLength = 200; ta.placeholder = "İstersen kısa bir not bırak (isteğe bağlı)"; ta.value = ynot; ta.oninput = () => ynot = ta.value; hb.type = "button";
-    hb.onclick = async () => { const yk = "salvea_yardim_" + me.uid; if (Date.now() - +(sessionStorage.getItem(yk) || 0) < 600000) { ysent = true; return renderNasil(); } hb.disabled = true; try { await addDoc(collection(db, "yardim"), { uid: me.uid, okulId: me.okulId || null, ad: me.ad + " " + me.soyad, sinif: me.sinif + "-" + me.sube, not: ynot.trim(), durum: "yeni", tarih: serverTimestamp() }); sessionStorage.setItem(yk, String(Date.now())); ysent = true; ynot = ""; renderNasil(); }
+    hb.onclick = async () => { const yk = "salvea_yardim_" + me.uid; if (Date.now() - +(sessionStorage.getItem(yk) || 0) < 600000) { ysent = true; return renderNasil(); } hb.disabled = true; try { const yr = await addDoc(collection(db, "yardim"), { uid: me.uid, okulId: me.okulId || null, ad: me.ad + " " + me.soyad, sinif: me.sinif + "-" + me.sube, not: ynot.trim(), durum: "yeni", tarih: serverTimestamp() }); bildir("yardim", { id: yr.id }); sessionStorage.setItem(yk, String(Date.now())); ysent = true; ynot = ""; renderNasil(); }
       catch (e) { show("Gönderilemedi: " + (e.code || e.message)); hb.disabled = false; } };
     hp.append(el("b", "", "Konuşmak ister misin?"), el("p", "hint", "Bu düğme herkes için var. Basarsan rehber öğretmenin sana ulaşır. Bunu yalnızca o görür."), ysent ? el("p", "", "Rehber öğretmenine haber verdik. Seninle görüşecek.") : ta);
     if (!ysent) hp.append(hb); parts.push(hp);
