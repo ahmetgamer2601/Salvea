@@ -1,5 +1,6 @@
 import { auth, db } from "./firebase.js";
 import { signOut } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+import { yerelOkundu } from "./ayar.js";
 import { collection, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 const T = x => (x && x.toMillis ? x.toMillis() : typeof x === "number" ? x : 0);
 const isPast = r => new Date(r.tarih + "T" + r.saat + ":00") < new Date();
@@ -16,6 +17,7 @@ const IC = {
   randevu: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
   program: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
   kultur: '<polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>',
+  ayarlar: '<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>',
   more: '<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>',
   out: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/>'
 };
@@ -42,10 +44,11 @@ export function mountNav(me, active) {
     program: ["Program", "#/program", "Ders ve çalışma planın"],
     kultur: ["Bilgi kartları", "#/kultur", "Öğren, eğlen, tekrar et"],
     sohbet: ["Sohbet", "#/sohbet", ""],
-    randevu: ["Randevu", "#/randevu", t ? "Randevuları yönet" : "Rehber öğretmenle görüş"]
+    randevu: ["Randevu", "#/randevu", t ? "Randevuları yönet" : "Rehber öğretmenle görüş"],
+    ayarlar: ["Ayarlar", "#/ayarlar", "Bildirimler ve sohbet görünümü"]
   };
   const prim = t ? ["home", "gorev", "sohbet", "randevu"] : ["home", "akis", "gorev", "sohbet"];
-  const more = t ? ["akis", "kisi", "program", "kultur"] : ["kisi", "program", "randevu", "kultur"];
+  const more = t ? ["akis", "kisi", "program", "kultur", "ayarlar"] : ["kisi", "program", "randevu", "kultur", "ayarlar"];
 
   const dock = el("nav", "dock"); dock.setAttribute("aria-label", "Ana gezinme");
   prim.forEach(k => {
@@ -97,13 +100,15 @@ export function setActive(key) {
 
 // ---- Sohbet: okunmamış mesaj rozeti ve kısa bildirim
 function watchChat(me) {
-  const seen = {}; let first = true;
-  const unread = c => c.son && c.son.uid !== me.uid && T(c.sonTs) > T(c.okundu && c.okundu[me.uid]);
+  const seen = {}; let first = true, son = [];
+  const unread = (c, id) => c.son && c.son.uid !== me.uid && T(c.sonTs) > Math.max(T(c.okundu && c.okundu[me.uid]), yerelOkundu(me.uid, id));
   const est = d => d.data({ serverTimestamps: "estimate" });
+  const say = () => { const n = son.filter(([id, c]) => unread(c, id)).length; setBadge("sohbet", n, "okunmamış"); bump("chat", n); };
+  window.addEventListener("salvea-okundu", say);   // okundu bilgisi kapalıyken rozet yine de güncellensin
   onSnapshot(query(collection(db, "sohbetler"), where("uyeler", "array-contains", me.uid)), snap => {
-    let n = 0; snap.forEach(d => { const c = est(d); if (unread(c)) n++; if (first && c.son) seen[d.id] = c.son.id; });
-    setBadge("sohbet", n, "okunmamış"); bump("chat", n);
-    if (!first) snap.docChanges().forEach(ch => { if (ch.type === "removed") return; const c = est(ch.doc); if (unread(c) && c.son.id !== seen[ch.doc.id]) { seen[ch.doc.id] = c.son.id; if (window.__route !== "sohbet") toast("💬 " + (c.son.ad || "Yeni mesaj"), c.son.foto ? "📷 Fotoğraf" : (c.son.metin || ""), "#/sohbet"); } });
+    son = []; snap.forEach(d => { const c = est(d); son.push([d.id, c]); if (first && c.son) seen[d.id] = c.son.id; });
+    say();
+    if (!first) snap.docChanges().forEach(ch => { if (ch.type === "removed") return; const c = est(ch.doc); if (unread(c, ch.doc.id) && c.son.id !== seen[ch.doc.id]) { seen[ch.doc.id] = c.son.id; if (window.__route !== "sohbet") toast("💬 " + (c.son.ad || "Yeni mesaj"), c.son.foto ? "📷 Fotoğraf" : (c.son.metin || ""), "#/sohbet?c=" + ch.doc.id); } });
     first = false;
   }, () => {});
 }
