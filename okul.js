@@ -1,4 +1,4 @@
-// Okul adı eşleştirme: yazım farkı, Türkçe karakter, kısaltma ve karışık yazımları aynı okula bağlar.
+
 const MAP = { "ı": "i", "ş": "s", "ğ": "g", "ü": "u", "ö": "o", "ç": "c", "â": "a", "î": "i", "û": "u" };
 export const normalize = s => (s || "").toLocaleLowerCase("tr").replace(/[ışğüöçâîû]/g, c => MAP[c]).replace(/\./g, "").replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
 const TYPE = { lisesi: "lise", lise: "lise", ortaokulu: "ortaokul", ortaokul: "ortaokul", ilkokulu: "ilkokul", ilkokul: "ilkokul", okulu: "okul", okul: "okul", koleji: "kolej", kolej: "kolej" };
