@@ -1,4 +1,4 @@
-// Tüm sayfalarda çalışan, Firebase'e bağlı OLMAYAN ortak davranışlar
+
 document.addEventListener('click', e => {
   const eye = e.target.closest('[data-eye]');
   if (eye) {
