@@ -1,4 +1,4 @@
-// Kişisel ayarlar: sohbet görünümü ve okundu bilgisi. Hesapta (ayarlar/{uid}) ve bu cihazda saklanır.
+
 import { db } from "./firebase.js";
 import { doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
