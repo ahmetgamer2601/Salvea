@@ -18,6 +18,7 @@ const P = {
   bell: '<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>', x: '<path d="M18 6L6 18M6 6l12 12"/>', down: '<path d="M6 9l6 6 6-6"/>',
   ban: '<circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/>', lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
   chat: '<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>',
+  flag: '<path d="M4 22V4M4 4h13l-2 4 2 4H4"/>', cap: '<path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11.5V16c0 1.5 3 3 6 3s6-1.5 6-3v-4.5"/>', flame: '<path d="M12 2c1 4 5 5.5 5 10a5 5 0 0 1-10 0c0-2 1-3 2-4 .3 1.4 1 2 2 2 0-3-1-5 1-8z"/>',
   dice: '<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8" cy="8" r="1.2"/><circle cx="16" cy="16" r="1.2"/><circle cx="12" cy="12" r="1.2"/>'
 };
 const ic = (k, c = "") => '<svg class="i ' + c + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' + P[k] + "</svg>";
@@ -31,7 +32,7 @@ export const html = `<div class="app" id="app">
 <section class="main">
 <div class="emptym" id="emp"><div class="eic">${ic("chat")}</div><b>Bir sohbet seç</b><p>Ya da sağ üstteki artı ile yeni bir mesaj başlat.</p><small>Rehber öğretmenle yazışabilir, takım sohbetine katılabilirsin.</small></div>
 <div class="chat" id="chat" hidden>
-<header class="ch"><button class="ib" id="cback" type="button" aria-label="Sohbet listesine dön">${ic("back")}</button><button class="chp" id="chp" type="button"><span id="cavw"></span><span class="cht"><b id="ct"></b><small id="cs"></small></span></button><button class="ib" id="cmore" type="button" aria-label="Sohbet seçenekleri" aria-haspopup="dialog">${ic("more")}</button></header>
+<header class="ch"><button class="ib" id="cback" type="button" aria-label="Sohbet listesine dön">${ic("back")}</button><button class="chp" id="chp" type="button"><span id="cavw"></span><span class="cht"><b id="ct"></b><small id="cs"></small></span><span class="cseri" id="cseri"></span></button><button class="ib" id="cmore" type="button" aria-label="Sohbet seçenekleri" aria-haspopup="dialog">${ic("more")}</button></header>
 <div class="msgs" id="msgs" aria-live="polite"></div>
 <button class="jb" id="jb" type="button" hidden aria-label="En alta git">${ic("down")}</button>
 <div class="rbar" id="rbar" hidden><div class="q" id="rq"></div><button class="ib" id="rx" type="button" aria-label="Yanıtı kaldır">${ic("x")}</button></div>
@@ -66,11 +67,12 @@ export default async function mount(ctx) {
   const title = c => c.tur === "dm" ? (c.uyeAd[other(c)] || "Sohbet") : c.ad;
   const closed = c => c.kapali === true || (c.bitisTs && T(c.bitisTs) < Date.now());
   const unread = c => c.son && c.son.uid !== me.uid && T(c.sonTs) > Math.max(T(c.okundu && c.okundu[me.uid]), yerelOkundu(me.uid, c.id));
+  const gizliMs = c => T(c.gizli && c.gizli[me.uid]);   // "geçmişi temizle / sohbeti sil": yalnızca benim ekranımı etkiler
   const ref = () => doc(db, "sohbetler", curId);
   const durRef = () => doc(db, "sohbetler", curId, "durum", "anlik");   // çevrimiçi/yazıyor bilgisi ayrı belgede: sohbet listesini ve rozetleri gereksiz tetiklemez
   const profilGit = uid => { kapatSheet(); ctx.go("kisi", "u=" + encodeURIComponent(uid)); };
   const initial = s => (s || "?").trim().charAt(0).toLocaleUpperCase("tr");
-  const avc = (c, cls) => { const a = el("div", "avc" + (cls ? " " + cls : "")); a.style.background = colorOf(c.tur === "dm" ? other(c) : c.id); if (c.tur === "dm") a.textContent = initial(title(c)); else a.append(I("users")); return a; };
+  const avc = (c, cls) => { const a = el("div", "avc" + (cls ? " " + cls : "")); a.style.background = colorOf(c.tur === "dm" ? other(c) : c.id); if (c.tur === "dm") a.textContent = initial(title(c)); else a.append(I(c.tur === "sinif" ? "cap" : "users")); return a; };
   const avUser = (uid, ad, cls) => { const a = el("div", "avc " + (cls || "s"), initial(ad)); a.style.background = colorOf(uid); return a; };
 
   /* ---------- Alt sayfa (sheet) ---------- */
@@ -80,6 +82,25 @@ export default async function mount(ctx) {
   $("scrim2").onclick = kapatSheet;
   ctx.on(document, "keydown", e => { if (e.key === "Escape") { kapatSheet(); $("lb").hidden = true; } });
   $("lb").onclick = () => $("lb").hidden = true;
+
+  /* ---------- Sohbet serisi ---------- */
+  // Her gün yazışmaya devam edince seri büyür. Birebir: iki kişi de; takım: yarısı; sınıf: %25'i (en az 3). Hafta sonu seriyi ne artırır ne bozar.
+  const gunAnahtar = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  function seriHesapla(c) {
+    const uyeler = (c.uyeler || []).filter(u => u !== "salvea"), g = c.gunler || {}, sayim = {}; uyeler.forEach(u => (g[u] || []).forEach(d => sayim[d] = (sayim[d] || 0) + 1));
+    const esik = c.tur === "dm" ? 2 : c.tur === "sinif" ? Math.max(3, Math.ceil(uyeler.length * 0.25)) : Math.max(2, Math.ceil(uyeler.length / 2));
+    const tamam = k => (sayim[k] || 0) >= esik, bugun = new Date(), bk = gunAnahtar(bugun), hs = d => d.getDay() === 0 || d.getDay() === 6;
+    let d = new Date(bugun), n = 0, say = 0; if (!tamam(bk) && !hs(d)) d.setDate(d.getDate() - 1);
+    while (say++ < 400) { if (hs(d)) { d.setDate(d.getDate() - 1); continue; } if (!tamam(gunAnahtar(d))) break; n++; d.setDate(d.getDate() - 1); }
+    return { n, bugunSayi: sayim[bk] || 0, esik, tehlike: n > 0 && !tamam(bk) && !hs(bugun) && bugun.getHours() >= 16 };
+  }
+  function gunlerYama(c) { const bk = gunAnahtar(new Date()), onceki = (c.gunler || {})[me.uid] || []; return onceki.includes(bk) ? {} : { ["gunler." + me.uid]: [...onceki.slice(-34), bk] }; }
+  function seriChip(n, tehlike) { const s = el("span", "seri-chip" + (tehlike ? " tehlike" : "") + (n >= 30 ? " b3" : n >= 7 ? " b2" : "")); s.append(I("flame"), String(n)); s.title = n + " günlük seri" + (tehlike ? ". Bugün yazarsan sürer!" : ""); return s; }
+  function seriGoster(c) { const k = $("cseri"); if (!k) return; const sr = seriHesapla(c); k.replaceChildren(...(sr.n >= 1 ? [seriChip(sr.n, sr.tehlike)] : [])); }
+  function kutlaKontrol(c) {
+    if (!c) return; const sr = seriHesapla(c); if (![3, 7, 14, 30, 50, 100].includes(sr.n)) return; const ak = "salvea_seri_" + me.uid + "_" + c.id + "_" + sr.n; try { if (localStorage.getItem(ak)) return; localStorage.setItem(ak, "1"); } catch (_) {}
+    const k = el("div", "seri-kutla"), a = el("div", "seri-alev"); a.innerHTML = ic("flame"); k.append(a, el("b", "", sr.n + " günlük seri!"), el("span", "", c.tur === "dm" ? "Her gün yazışmaya devam edin." : "Bu sohbet her gün canlı.")); root.append(k); setTimeout(() => k.classList.add("kapan"), 3000); setTimeout(() => k.remove(), 3500);
+  }
 
   /* ---------- Sohbet listesi ---------- */
   ctx.snap(query(collection(db, "sohbetler"), where("uyeler", "array-contains", me.uid)), snap => {
@@ -96,13 +117,13 @@ export default async function mount(ctx) {
     const t = (c.son.metin || "").replace(/^💡 /, ""); if (c.son.metin && c.son.metin.startsWith("💡 ")) f.append(I("bulb", "mini")); f.append(c.son.foto && !c.son.metin ? "Fotoğraf" : t); return f;
   }
   function renderList() {
-    const list = Object.values(chats).sort((a, b) => (T(b.sonTs) || T(b.olusturma)) - (T(a.sonTs) || T(a.olusturma)));
+    const list = Object.values(chats).filter(c => !(c.tur === "dm" && gizliMs(c) && gizliMs(c) >= T(c.sonTs))).sort((a, b) => (T(b.sonTs) || T(b.olusturma)) - (T(a.sonTs) || T(a.olusturma)));
     if (!list.length) return $("clist").replaceChildren(el("div", "emptym kucuk", "Henüz sohbetin yok. Artı düğmesiyle rehber öğretmenine yazabilirsin."));
     $("clist").replaceChildren(...list.map(c => {
       const b = el("button", "citem" + (c.id === curId ? " on" : "") + (unread(c) ? " un" : "")), mid = el("div", "cm"), nm = el("div", "t", title(c)), tm = el("div", "tm"), p = el("div", "p");
       b.type = "button"; if (closed(c)) nm.append(el("span", "clo", "kapandı"));
       p.append(onizleme(c)); mid.append(nm, p);
-      if (c.sonTs && c.son) tm.append(el("div", "", hm(T(c.sonTs)))); if (unread(c)) tm.append(el("span", "udot"));
+      if (c.sonTs && c.son) tm.append(el("div", "", hm(T(c.sonTs)))); if (unread(c)) tm.append(el("span", "udot")); { const sr = seriHesapla(c); if (sr.n >= 2) tm.append(seriChip(sr.n, sr.tehlike)); }
       if (unread(c) && seen[c.id] && seen[c.id] !== T(c.sonTs) && c.id !== curId) b.classList.add("flash");
       seen[c.id] = T(c.sonTs);
       b.append(avc(c), mid, tm); b.onclick = () => open(c.id); return b;
@@ -120,7 +141,7 @@ export default async function mount(ctx) {
     sub(); comp(); renderList();
     unsubDur = ctx.snap(durRef(), s => { dur = s.exists() ? s.data() : {}; sub(); }, () => {});
     unsubMsg = ctx.snap(query(collection(db, "sohbetler", id, "mesajlar"), orderBy("ts", "desc"), limit(120)), snap => {
-      msgs = snap.docs.map(d => ({ id: d.id, ...d.data({ serverTimestamps: "estimate" }), pending: d.metadata.hasPendingWrites })).reverse();
+      msgs = snap.docs.map(d => ({ id: d.id, ...d.data({ serverTimestamps: "estimate" }), pending: d.metadata.hasPendingWrites })).reverse().filter(m => !m.ts || T(m.ts) > gizliMs(chats[id] || {}));
       paint(); markRead();
     }, e => toast("Mesajlar okunamadı: " + (e.code || e.message)));
     beat(); hb = ctx.every(beat, 60000);
@@ -134,14 +155,14 @@ export default async function mount(ctx) {
 
   /* ---------- Üst bilgi: yazıyor / çevrimiçi ---------- */
   function sub() {
-    const c = C(); if (!c) return; const now = Date.now(), others = c.uyeler.filter(u => u !== me.uid), s = $("cs"); s.className = "";
+    const c = C(); if (!c) return; seriGoster(c); const now = Date.now(), others = c.uyeler.filter(u => u !== me.uid), s = $("cs"); s.className = "";
     if (closed(c)) return void (s.textContent = "Bu sohbet kapandı");
     const typing = others.filter(u => now - T(dur.yaziyor && dur.yaziyor[u]) < 8000);
     if (typing.length) { s.className = "typing"; s.replaceChildren(el("span", "", c.tur === "dm" ? "yazıyor" : typing.map(u => (c.uyeAd[u] || "").split(" ")[0]).join(", ") + " yazıyor")); const d = el("span", "dots"); d.append(el("i"), el("i"), el("i")); s.append(d); return; }
     const online = others.filter(u => now - T(dur.aktif && dur.aktif[u]) < 150000);
     s.className = online.length ? "on" : "";
     if (c.tur === "dm") { const t = T(dur.aktif && dur.aktif[others[0]]); s.textContent = online.length ? "çevrimiçi" : t ? "son görülme " + dayLabel(t).toLowerCase() + " " + hm(t) : "çevrimdışı"; }
-    else s.textContent = c.uyeler.length + " üye" + (online.length ? " · " + online.length + " çevrimiçi" : "");
+    else { const sr = seriHesapla(c); s.textContent = c.uyeler.length + " üye" + (c.tur === "sinif" ? " · bugün " + sr.bugunSayi + " kişi yazdı" : "") + (online.length ? " · " + online.length + " çevrimiçi" : ""); }
   }
   ctx.every(sub, 4000);
   function beat() { if (!curId || document.hidden || !C() || closed(C())) return; setDoc(durRef(), { aktif: { [me.uid]: Date.now() } }, { merge: true }).catch(() => {}); }
@@ -151,8 +172,24 @@ export default async function mount(ctx) {
     const c = C(); if (!c) return;
     acSheet(title(c), satir("palette", "Görünümü özelleştir", "Sohbet rengi, mesaj rengi, okundu bilgisi", gorunum),
       c.tur === "dm" ? satir("user", "Profili gör", null, () => profilGit(other(c))) : satir("users", "Üyeleri gör", c.uyeler.length + " kişi", () => uyeler(c)),
-      satir("bell", "Bildirim ayarları", null, () => ctx.go("ayarlar")));
+      satir("bell", "Bildirim ayarları", null, () => ctx.go("ayarlar")),
+      ...(c.tur === "sinif" ? [satir("cap", "Sınıf sayfası", "Öğretmenler ve ayarlar", () => ctx.go("sinif"))] : []),
+      satir("trash", "Geçmişi temizle", "Yalnızca senin ekranından silinir", () => onayla("Geçmiş temizlensin mi?", "Bu sohbetteki eski mesajlar yalnızca senin ekranında gizlenir.", () => temizle(false))),
+      ...(c.tur === "dm" ? [satir("trash", "Sohbeti sil", "Listeden kaldırır; yeni mesaj gelirse yeniden görünür", () => onayla("Sohbet silinsin mi?", "Sohbet yalnızca senin listenden kaldırılır. Karşındaki kişi etkilenmez.", () => temizle(true)), true)] : []));
   };
+  function onayla(baslik, metin, f) {
+    const evet = el("button", "btn", "Evet"), iptal = el("button", "btn ghost", "Vazgeç"), k = el("div", "onay"); evet.type = iptal.type = "button"; evet.onclick = () => { kapatSheet(); f(); }; iptal.onclick = kapatSheet; k.append(evet, iptal); acSheet(baslik, el("p", "bilgi", metin), k);
+  }
+  async function temizle(sohbetiKapat) {
+    const id = curId; if (!id) return;
+    try { await updateDoc(doc(db, "sohbetler", id), { ["gizli." + me.uid]: serverTimestamp() }); } catch (e) { return toast("İşlem yapılamadı: " + (e.code || e.message)); }
+    chats[id] = { ...chats[id], gizli: { ...(chats[id].gizli || {}), [me.uid]: Date.now() } }; msgs = []; nodes.forEach(n => n.remove()); nodes = new Map(); lastDay = ""; $("msgs").replaceChildren();
+    if (sohbetiKapat) kapatSohbet(); else { renderList(); toast("Geçmiş temizlendi."); }
+  }
+  async function rapor(m) {
+    try { const id = curId + "_" + m.id + "_" + me.uid; await setDoc(doc(db, "raporlar", id), { okulId: me.okulId, sohbetId: curId, mesajId: m.id, mesajUid: m.uid, mesajAd: m.ad || "", metin: (m.metin || "Fotoğraf").slice(0, 300), bildiren: me.uid, bildirenAd: myName, durum: "yeni", ts: serverTimestamp() }); bildir("rapor", { id }); toast("Bildirildi. Öğretmenlerin inceleyecek."); }
+    catch (e) { toast(e.code === "permission-denied" ? "Bu mesajı zaten bildirdin." : "Bildirilemedi: " + (e.code || e.message)); }
+  }
   function uyeler(c) {
     acSheet(c.ad, ...c.uyeler.map(u => { const b = el("button", "srow"); b.type = "button"; const nm = (c.uyeAd[u] || "Üye"); b.append(avUser(u, nm), (() => { const m = el("span"); m.append(el("b", "", nm + (u === me.uid ? " (sen)" : ""))); m.append(el("small", "", "Profili gör")); return m; })()); b.onclick = () => profilGit(u); return b; }));
   }
@@ -193,10 +230,11 @@ export default async function mount(ctx) {
   function updTicks() { msgs.forEach(m => { const n = nodes.get(m.id); if (!n) return; const sig = sigOf(m); if (n._sig !== sig) { n._sig = sig; fill(n, m); } }); }
   const tikSpan = st => { const s = el("span", "tick" + (st === "r" ? " read" : "")); s.setAttribute("aria-label", st === "p" ? "Gönderiliyor" : st === "s" ? "Gönderildi" : st === "r" ? "Okundu" : "Teslim edildi"); s.innerHTML = ic(st === "p" ? "clock" : st === "s" ? "check" : "check2"); return s; };
   function fill(n, m) {
-    const c = C(), mine = m.uid === me.uid, grp = c.tur === "takim", b = el("div", "bub");
+    const c = C(), mine = m.uid === me.uid, grp = c.tur !== "dm", bot = m.uid === "salvea" || m.bot === true, b = el("div", "bub");
     if (m.silindi) { b.classList.add("del"); b.append(I("ban"), el("span", "", m.silan && m.silan !== m.uid ? "Bu mesaj rehber öğretmen tarafından silindi" : "Bu mesaj silindi")); }
     else {
-      if (grp && !mine) { const nm = el("button", "nm", m.ad); nm.type = "button"; nm.style.color = colorOf(m.uid); nm.onclick = () => profilGit(m.uid); b.append(nm); }
+      if (bot) { b.classList.add("bot"); b.append(el("span", "nm bot-nm", "Salvea" + (m.etiket ? " · " + m.etiket : ""))); }
+      else if (grp && !mine) { const nm = el("button", "nm", m.ad); nm.type = "button"; nm.style.color = colorOf(m.uid); nm.onclick = () => profilGit(m.uid); b.append(nm); }
       if (m.yanit) { const q = el("button", "quote"); q.type = "button"; const qs = el("span"); if (m.yanit.foto) qs.append(I("image", "mini")); qs.append(m.yanit.metin || (m.yanit.foto ? "Fotoğraf" : "")); q.append(el("b", "", m.yanit.ad), qs); q.onclick = () => jump(m.yanit.id); b.append(q); }
       if (m.fotoSil && (!m.foto || T(m.fotoSil) < Date.now())) { const e = el("em", "tx exp"); e.append(I("image", "mini"), "Fotoğrafın saklama süresi doldu"); b.append(e); }
       else if (m.foto) { const im = el("img", "ph"); im.src = m.foto; im.alt = "Gönderilen fotoğraf"; im.onclick = () => { $("lbi").src = m.foto; $("lb").hidden = false; }; b.append(im); }
@@ -205,7 +243,7 @@ export default async function mount(ctx) {
     const mt = el("span", "mt"); if (m.ts) mt.append(el("time", "", hm(T(m.ts)))); if (mine && !m.silindi) mt.append(tikSpan(readState(m)));
     b.append(mt);
     n.replaceChildren();
-    if (grp && !mine) { const av = el("button", "mav"); av.type = "button"; av.setAttribute("aria-label", m.ad + " profilini aç"); av.append(avUser(m.uid, m.ad, "xs")); av.onclick = () => profilGit(m.uid); n.append(av); }
+    if (grp && !mine) { const av = el("button", "mav"); av.type = "button"; av.setAttribute("aria-label", m.ad + " profilini aç"); if (bot) { const im = el("img", "botav"); im.src = "logo.png"; im.alt = "Salvea"; av.append(im); av.style.cursor = "default"; } else { av.append(avUser(m.uid, m.ad, "xs")); av.onclick = () => profilGit(m.uid); } n.append(av); }
     n.append(b);
     if (!m.silindi) {
       const mb = el("button", "mb"); mb.type = "button"; mb.setAttribute("aria-label", "Mesaj seçenekleri"); mb.innerHTML = ic("down"); mb.onclick = e => { e.stopPropagation(); aksiyon(m); }; b.append(mb);
@@ -239,8 +277,9 @@ export default async function mount(ctx) {
     const satirlar = [onizle];
     if (!closed(c)) satirlar.push(satir("reply", "Yanıtla", null, () => { reply = m; updReply(); $("txt").focus(); }));
     if (m.metin) satirlar.push(satir("copy", "Kopyala", null, () => kopyala(m.metin.replace(/^💡 /, ""))));
+    if (m.uid !== me.uid && m.uid !== "salvea" && !m.bot) satirlar.push(satir("flag", "Öğretmene bildir", "Uygunsuz bir mesajı öğretmenlerine iletir", () => onayla("Mesaj bildirilsin mi?", "Mesajın bir kopyası öğretmenlerine gider. Yanlışlıkla bildirmek sorun değil.", () => rapor(m))));
     if (m.uid === me.uid && !ayar().okunduGizle) { const o = c.uyeler.filter(u => u !== me.uid), rd = o.filter(u => T(c.okundu && c.okundu[u]) >= T(m.ts)).map(u => (c.uyeAd[u] || "").split(" ")[0]); satirlar.push(el("p", "bilgi", rd.length ? "Okuyanlar: " + rd.join(", ") : "Henüz okunmadı")); }
-    if (!closed(c) && (m.uid === me.uid || (me.role === "teacher" && c.tur === "takim"))) satirlar.push(satir("trash", "Herkesten sil", "Mesaj ve fotoğrafı kalıcı olarak silinir", () => del(m), true));
+    if (!closed(c) && (m.uid === me.uid || (me.role === "teacher" && c.tur !== "dm"))) satirlar.push(satir("trash", "Herkesten sil", "Mesaj ve fotoğrafı kalıcı olarak silinir", () => del(m), true));
     acSheet("", ...satirlar);
   }
   async function kopyala(t) { try { await navigator.clipboard.writeText(t); toast("Kopyalandı."); } catch (_) { const a = el("textarea"); a.value = t; document.body.append(a); a.select(); try { document.execCommand("copy"); toast("Kopyalandı."); } catch (__) { toast("Kopyalanamadı."); } a.remove(); } }
@@ -293,8 +332,8 @@ export default async function mount(ctx) {
     if (!custom) { $("txt").value = ""; grow(); pend = null; reply = null; updPv(); updReply(); lastTyping = 0; }
     const b = writeBatch(db);
     b.set(mref, m);
-    b.update(ref(), { son: { id: mref.id, uid: me.uid, ad: myName, metin: text || "Fotoğraf", foto: !!foto }, sonTs: serverTimestamp(), ["okundu." + me.uid]: serverTimestamp() });
-    try { await b.commit(); setDoc(durRef(), { yaziyor: { [me.uid]: 0 } }, { merge: true }).catch(() => {}); bildir("sohbet", { sohbet: cid, mesaj: mref.id }); }
+    b.update(ref(), { son: { id: mref.id, uid: me.uid, ad: myName, metin: text || "Fotoğraf", foto: !!foto }, sonTs: serverTimestamp(), ["okundu." + me.uid]: serverTimestamp(), ...gunlerYama(c) });
+    try { await b.commit(); setDoc(durRef(), { yaziyor: { [me.uid]: 0 } }, { merge: true }).catch(() => {}); bildir("sohbet", { sohbet: cid, mesaj: mref.id }); setTimeout(() => kutlaKontrol(chats[cid]), 900); }
     catch (e) { toast("Mesaj gönderilemedi: " + (e.code || e.message)); if (!custom) { $("txt").value = text; grow(); } }
   }
 
@@ -313,10 +352,13 @@ export default async function mount(ctx) {
     p.replaceChildren(el("small", "hint", "Yükleniyor…"));
     try {
       if (me.role === "teacher") people = (await getDocs(query(collection(db, "users"), where("role", "==", "student"), where("okulId", "==", me.okulId)))).docs.map(d => ({ uid: d.id, ad: d.data().ad + " " + d.data().soyad, alt: d.data().sinif + "-" + d.data().sube }));
-      else people = (await getDocs(query(collection(db, "ogretmenler"), where("okulId", "==", me.okulId)))).docs.filter(d => d.id !== me.uid).map(d => ({ uid: d.id, ad: d.data().ad, alt: d.data().brans || "Rehber öğretmen" }));
+      else {
+        const roller = {}; try { const sd = await getDoc(doc(db, "siniflar", me.okulId + "_" + me.sinif + "-" + me.sube)); if (sd.exists()) { (sd.data().sinifOgretmenleri || []).forEach(u => roller[u] = "Sınıf öğretmenin"); (sd.data().rehberOgretmenleri || []).forEach(u => roller[u] = (roller[u] ? roller[u] + " · " : "") + "Rehber öğretmenin"); } } catch (_) {}
+        people = (await getDocs(query(collection(db, "ogretmenler"), where("okulId", "==", me.okulId)))).docs.filter(d => d.id !== me.uid).map(d => ({ uid: d.id, ad: d.data().ad, alt: roller[d.id] || d.data().brans || "Öğretmen", sira: roller[d.id] ? 0 : 1 }));
+      }
     } catch (e) { return p.replaceChildren(el("small", "hint", "Liste okunamadı: " + (e.code || e.message))); }
     const inp = el("input"); inp.type = "search"; inp.placeholder = me.role === "teacher" ? "Öğrenci ara" : "Öğretmen ara"; const box = el("div");
-    const draw = () => { const q = inp.value.trim().toLocaleLowerCase("tr"); const rows = people.filter(x => !q || x.ad.toLocaleLowerCase("tr").includes(q)).sort((a, b) => a.ad.localeCompare(b.ad, "tr"));
+    const draw = () => { const q = inp.value.trim().toLocaleLowerCase("tr"); const rows = people.filter(x => !q || x.ad.toLocaleLowerCase("tr").includes(q)).sort((a, b) => ((a.sira || 0) - (b.sira || 0)) || a.ad.localeCompare(b.ad, "tr"));
       box.replaceChildren(...(rows.length ? rows.map(x => { const b = el("button", "pp"), d = el("div"); d.append(el("b", "", x.ad), el("small", "", x.alt)); b.type = "button"; b.append(avUser(x.uid, x.ad, "m"), d); b.onclick = () => startDm(x); return b; }) : [el("small", "hint", me.role === "teacher" ? "Öğrenci bulunamadı." : "Okulunda henüz profilini oluşturmuş rehber öğretmen yok.")])); };
     inp.oninput = draw; p.replaceChildren(inp, box); draw();
   };
