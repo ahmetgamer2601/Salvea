@@ -1,4 +1,4 @@
-
+// Kişisel ayarlar: sohbet görünümü ve okundu bilgisi. Hesapta (ayarlar/{uid}) ve bu cihazda saklanır.
 import { db } from "./firebase.js";
 import { doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
@@ -14,7 +14,7 @@ export const BALONLAR = [
   { id: "yesil", ad: "Yeşil", bg: "#d7e9d3" }, { id: "mavi", ad: "Mavi", bg: "#d3e4f3" }, { id: "pembe", ad: "Pembe", bg: "#f3d9e2" },
   { id: "sari", ad: "Sarı", bg: "#f5e8bf" }, { id: "mor", ad: "Mor", bg: "#e1daf1" }, { id: "orman", ad: "Orman", bg: "#2c5545" }, { id: "okyanus", ad: "Okyanus", bg: "#3f6a86" }
 ];
-export const VARSAYILAN = { sohbetTema: "krem", balonRenk: "yesil", okunduGizle: false };
+export const VARSAYILAN = { sohbetTema: "krem", balonRenk: "yesil", okunduGizle: false, rehber: 0 };
 const parlak = h => { const c = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255).map(v => v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4); return .2126 * c[0] + .7152 * c[1] + .0722 * c[2]; };
 const yaziRengi = bg => parlak(bg) > .4 ? "#18261f" : "#ffffff";
 
@@ -25,13 +25,13 @@ export async function ayarYukle(uid) {
   kim = uid; let a = {};
   try { a = JSON.parse(localStorage.getItem("salvea_ayar_" + uid) || "{}"); } catch (_) {}
   onbellek = { ...VARSAYILAN, ...a };
-  try { const s = await getDoc(doc(db, "ayarlar", uid)); if (s.exists()) { const d = s.data(); onbellek = { ...VARSAYILAN, sohbetTema: d.sohbetTema, balonRenk: d.balonRenk, okunduGizle: d.okunduGizle === true }; localStorage.setItem("salvea_ayar_" + uid, JSON.stringify(onbellek)); } } catch (_) {}
+  try { const s = await getDoc(doc(db, "ayarlar", uid)); if (s.exists()) { const d = s.data(); onbellek = { ...VARSAYILAN, sohbetTema: d.sohbetTema, balonRenk: d.balonRenk, okunduGizle: d.okunduGizle === true, rehber: +d.rehber || 0 }; localStorage.setItem("salvea_ayar_" + uid, JSON.stringify(onbellek)); } } catch (_) {}
   return onbellek;
 }
 export async function ayarKaydet(uid, yama) {
   onbellek = { ...ayar(), ...yama };
   try { localStorage.setItem("salvea_ayar_" + uid, JSON.stringify(onbellek)); } catch (_) {}
-  await setDoc(doc(db, "ayarlar", uid), { sohbetTema: onbellek.sohbetTema, balonRenk: onbellek.balonRenk, okunduGizle: onbellek.okunduGizle === true, guncelleme: serverTimestamp() });
+  await setDoc(doc(db, "ayarlar", uid), { sohbetTema: onbellek.sohbetTema, balonRenk: onbellek.balonRenk, okunduGizle: onbellek.okunduGizle === true, rehber: +onbellek.rehber || 0, guncelleme: serverTimestamp() });
 }
 // Seçili temayı bir kapsayıcıya CSS değişkeni olarak uygular
 export function temaUygula(kok, a = ayar()) {
