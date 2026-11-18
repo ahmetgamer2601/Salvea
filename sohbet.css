@@ -124,3 +124,17 @@ body.chatmode:has(.app.inchat) .dock{display:none}
 .v-sohbet[data-tema="gece"] .bub.del{background:rgba(255,255,255,.1);color:#b9c8bb}
 .v-sohbet[data-tema="gece"] .row:not(.me) .quote{background:rgba(255,255,255,.1)}
 .v-sohbet[data-tema="gece"] .bub .ph{filter:none}
+
+/* seri (streak), Salvea bot mesajı, onay alt sayfası */
+.v-sohbet .cseri{flex:none;margin-left:auto;margin-right:2px}
+.v-sohbet .seri-chip{display:inline-flex;align-items:center;gap:3px;font-size:.78rem;font-weight:700;color:#c25a1a;background:#fdeedd;border-radius:99px;padding:3px 9px 3px 6px}
+.v-sohbet .seri-chip svg.i{width:15px;height:15px;fill:currentColor;transform-origin:50% 90%;animation:alev 1.6s ease-in-out infinite}
+.v-sohbet .seri-chip.b2{background:#fde0cc;color:#b8431a}.v-sohbet .seri-chip.b3{background:#fbd0d0;color:#a52a2a}.v-sohbet .seri-chip.tehlike{animation:serihaber 1.6s ease-in-out infinite}
+@keyframes alev{0%,100%{transform:scale(1) rotate(-2deg)}50%{transform:scale(1.16,1.08) rotate(3deg)}}@keyframes serihaber{0%,100%{box-shadow:0 0 0 0 rgba(232,115,31,.5)}50%{box-shadow:0 0 0 6px rgba(232,115,31,0)}}
+.v-sohbet .seri-kutla{position:fixed;left:50%;top:96px;transform:translateX(-50%);z-index:95;background:var(--paper);border:1.5px solid #f2d3b5;box-shadow:0 18px 50px rgba(194,90,26,.3);border-radius:24px;padding:16px 30px;display:grid;justify-items:center;gap:2px;text-align:center;animation:kutla .55s cubic-bezier(.3,1.5,.5,1)}
+.v-sohbet .seri-kutla b{font-family:var(--serif);font-size:1.4rem;font-weight:500}.v-sohbet .seri-kutla span{font-size:.86rem;color:#5b6b61}
+.v-sohbet .seri-alev svg.i{width:56px;height:56px;color:#e8731f;fill:#f6a24a;animation:alev 1s ease-in-out infinite}.v-sohbet .seri-kutla.kapan{opacity:0;transform:translate(-50%,-16px);transition:opacity .4s,transform .4s}
+@keyframes kutla{from{opacity:0;transform:translate(-50%,-30px) scale(.7)}to{opacity:1;transform:translate(-50%,0) scale(1)}}
+.v-sohbet .bub.bot{background:linear-gradient(150deg,#fbf3dc,#f5e8c9);border:1.5px solid #e6d29a;color:#3d3414}.v-sohbet .bot-nm{display:block;font-size:.74rem;font-weight:700;color:#a07d12;margin-bottom:3px}
+.v-sohbet .botav{width:28px;height:28px;border-radius:50%;background:var(--forest);object-fit:contain;padding:3px;display:block}
+.v-sohbet .onay{display:flex;gap:10px;padding:6px 6px 0}.v-sohbet .onay .btn{margin:0;flex:1}
