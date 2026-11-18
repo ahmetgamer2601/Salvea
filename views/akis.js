@@ -46,11 +46,17 @@ export default async function mount(ctx) {
   const ipucu = ([b, t]) => card("iyi", "c-ipucu", tag("Kısa not"), el("h2", "", b), el("p", "", t));
   const kelime = ([k, a]) => card("bilgi", "c-kelime", tag("Günün kelimesi"), el("h2", "", k), el("p", "fbig", a));
   const atasozu = ([s, a]) => card("bilgi", "c-atasozu", tag("Atasözü"), el("p", "fbig", "“" + s + "”"), el("p", "", a));
+  // Günlük cesaret serisi (bu cihazda tutulur)
+  const SK = "salvea_cesseri_" + me.uid, gunK = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  const seriOku = () => { try { const x = JSON.parse(localStorage.getItem(SK) || "{}"), dun = new Date(); dun.setDate(dun.getDate() - 1); return x.son === gunK(new Date()) || x.son === gunK(dun) ? x : { n: 0 }; } catch (_) { return { n: 0 }; } };
+  const seriArttir = () => { const x = seriOku(), b = gunK(new Date()); if (x.son === b) return; try { localStorage.setItem(SK, JSON.stringify({ son: b, n: (x.n || 0) + 1 })); } catch (_) {} };
+  const seriMetin = () => { const x = seriOku(); return x.n ? x.n + " günlük cesaret serisi" : "Seriyi başlat: bugünkü görevi yap"; };
   const cesaret = t => {
     const k = "ces:" + t.slice(0, 30), b = el("button", "fdone", st[k] ? "✓ Yaptım" : "Yaptım mı?"); b.type = "button"; b.setAttribute("aria-pressed", String(!!st[k]));
-    b.onclick = () => { const v = !st[k]; put(k, v); b.setAttribute("aria-pressed", String(v)); b.textContent = v ? "✓ Yaptım" : "Yaptım mı?"; ok.textContent = v ? "Harika, güzel bir adım. 🎉" : "Küçük bir adım. Kimseye söylemek zorunda değilsin."; };
+    b.onclick = () => { const v = !st[k]; put(k, v); if (v) seriArttir(); sr.textContent = seriMetin(); b.setAttribute("aria-pressed", String(v)); b.textContent = v ? "✓ Yaptım" : "Yaptım mı?"; ok.textContent = v ? "Harika, güzel bir adım. 🎉" : "Küçük bir adım. Kimseye söylemek zorunda değilsin."; };
     const ok = el("p", "", st[k] ? "Harika, güzel bir adım. 🎉" : "Küçük bir adım. Kimseye söylemek zorunda değilsin.");
-    return card("iyi", "c-cesaret", tag("Bugünün mini cesareti"), el("p", "fbig", t), ok, b);
+    const sr = el("small", "fsrc", seriMetin());
+    return card("iyi", "c-cesaret", tag("Bugünün mini cesareti"), el("p", "fbig", t), ok, b, sr);
   };
   const quiz = q => {
     const w = el("div", "qopts"), ex = el("p", "qexp"); ex.hidden = true;
