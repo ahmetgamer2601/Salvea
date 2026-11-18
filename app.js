@@ -2,6 +2,8 @@
 import { guard } from "./guard.js";
 import { mountNav, setActive } from "./nav.js";
 import { ayarYukle } from "./ayar.js";
+import { senkronla, durum as pushDurum, hazir as pushHazir } from "./push.js";
+import { rehberKontrol, rehberGoster } from "./rehber.js";
 import { onSnapshot } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
 const $g = id => document.getElementById(id);
@@ -15,13 +17,16 @@ const ROTA = {
   kultur: { key: "kultur", baslik: "Bilgi kartları", mod: () => import("./views/kultur.js") },
   sohbet: { key: "sohbet", baslik: "Sohbet", mod: () => import("./views/sohbet.js") },
   randevu: { key: "randevu", baslik: "Randevu", mod: () => import("./views/randevu.js") },
-  ayarlar: { key: "ayarlar", baslik: "Ayarlar", mod: () => import("./views/ayarlar.js") }
+  ayarlar: { key: "ayarlar", baslik: "Ayarlar", mod: () => import("./views/ayarlar.js") },
+  duyuru: { key: "duyuru", baslik: "Duyurular", mod: () => import("./views/duyuru.js") },
+  sinif: { key: "sinif", baslik: "Sınıfım", mod: () => import("./views/sinif.js") }
 };
 // Eski .html bağlantıları (sayfa içi kartlar, geri düğmeleri) kabuk içinde açılır
 const ESKI = { akis: "akis", profil: "kisi", gorevler: "gorev", program: "program", kultur: "kultur", sohbet: "sohbet", randevu: "randevu", student: "home", teacher: "home" };
 
 const me = await guard();
-ayarYukle(me.uid);
+ayarYukle(me.uid).then(() => rehberKontrol(me));   // ilk girişte rehber (bir kez)
+senkronla(me);   // bildirim aboneliğini her açılışta tazele
 let tok = 0, temizlik = [];
 const durdur = () => { temizlik.splice(0).forEach(f => { try { f(); } catch (_) {} }); };
 const ayril = (t, f) => t === tok ? temizlik.push(f) : f();   // sayfa terk edildiyse geç kayıtlar hemen temizlenir
@@ -64,9 +69,27 @@ async function render() {
   try { await mod.default(baglam(root, query, t)); }
   catch (e) { console.error(e); if (t === tok) S.show("Sayfa tam yüklenemedi: " + (e.code || e.message)); }
   if (t === tok) bar.hidden = true;
+  uyariDene();
   $g("splash")?.remove();
 }
 
+// Bildirimler kapalıysa (3 günde bir) ince bir hatırlatma çubuğu göster
+let uyariDenendi = false;
+function uyariDene() {
+  if (uyariDenendi) return; uyariDenendi = true;
+  setTimeout(async () => {
+    try {
+      const k = "salvea_bildirim_uyari_" + me.uid; if (Date.now() - (+localStorage.getItem(k) || 0) < 3 * 864e5) return;
+      if (!pushHazir() || document.body.classList.contains("rh-acik") || ["ayarlar", "sohbet"].includes(window.__route)) { uyariDenendi = false; return; }
+      const d = await pushDurum(me); if (d.abone || d.izin === "denied" || (!d.destek && !d.ios)) return;
+      const b = document.createElement("div"), m = document.createElement("span"), a = document.createElement("a"), x = document.createElement("button");
+      b.className = "nbar"; m.textContent = d.ios ? "iPhone'da bildirim için önce uygulamayı ana ekrana ekle." : "Bildirimler kapalı: yeni mesaj ve görevleri kaçırabilirsin."; a.href = "#/ayarlar"; a.textContent = "Aç";
+      x.type = "button"; x.textContent = "×"; x.setAttribute("aria-label", "Kapat"); x.onclick = () => { try { localStorage.setItem(k, String(Date.now())); } catch (_) {} b.remove(); };
+      b.append(m, a, x); shell.insertBefore(b, view);
+    } catch (_) {}
+  }, 4000);
+}
+window.addEventListener("salvea-rehber", () => rehberGoster(me));
 document.addEventListener("click", e => {
   if (e.defaultPrevented || e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
   const a = e.target.closest("a[href]"); if (!a || a.target) return;
