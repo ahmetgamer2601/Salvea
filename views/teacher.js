@@ -133,7 +133,9 @@ export default async function mount(ctx) {
     const csv = el("button", "btn ghost sm", "Check-in verilerini indir (CSV)"); csv.type = "button"; csv.style.marginTop = "18px";
     csv.onclick = () => { const rows = [["kod", "sinif", "etiket", "hafta", "ruh_1_5", "yalnizlik_0_10", "konusma"]];
       checks.forEach(c => { const s = byId[c.uid] || {}; rows.push([c.uid.slice(0, 6), s.sinif || "", labels[c.uid] || "yok", c.hafta, c.ruh, c.yalniz, c.konusma]); });
-      const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["\ufeff" + rows.map(r => r.join(",")).join("\n")], { type: "text/csv" })); a.download = "salvea-checkin.csv"; a.click(); };
+      // Excel'de =, +, -, @ ile başlayan hücreler formül sayılır; başına ' koyarak metne çeviririz
+      const csvHucre = v => { v = String(v == null ? "" : v); if (/^[=+\-@\t\r]/.test(v)) v = "'" + v; return /[",\n\r]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+      const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["\ufeff" + rows.map(r => r.map(csvHucre).join(",")).join("\n")], { type: "text/csv" })); a.download = "salvea-checkin.csv"; a.click(); };
     parts.push(csv, el("small", "hint", "Dosyada isim yok; öğrenciler 6 karakterlik bir kodla yer alır."));
     $("dikkat").replaceChildren(...parts);
   }
