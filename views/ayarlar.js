@@ -8,7 +8,8 @@ export const html = `<header class="top"><div class="tile"><img src="logo.png" a
 <div class="prev" id="prev"><div class="pr them">Merhaba, bugün nasılsın?</div><div class="pr me">İyiyim, teşekkürler!</div></div>
 <h3>Sohbet rengi</h3><div class="swg" id="tm"></div>
 <h3>Mesaj rengi</h3><div class="swg" id="bl"></div>
-<div id="okSw"></div></section>`;
+<div id="okSw"></div></section>
+<section class="setcard"><h2>Yardım</h2><p class="hint">Salvea'nın nasıl çalıştığını kısa bir turla yeniden görebilirsin.</p><div class="setbtns"><button class="btn sm ghost" id="rhBtn" type="button">Rehberi yeniden göster</button></div></section>`;
 export const max = "640px";
 
 export default async function mount(ctx) {
@@ -41,6 +42,7 @@ export default async function mount(ctx) {
     tur("sohbet", "Mesajlar", "Sohbetlere yeni mesaj geldiğinde");
     tur("program", "Program", teacher ? "" : "Öğretmenin program eklediğinde ya da güncellediğinde");
     tur("gorev", "Görevler", teacher ? "Takımlar kanıt gönderdiğinde" : "Yeni görev, onay ya da tekrar isteği geldiğinde");
+    tur("duyuru", "Duyurular", "Öğretmenlerin ya da yöneticinin gönderdiği duyurular");
     tur("randevu", "Randevular", teacher ? "Yeni randevu talebi geldiğinde" : "Randevu talebine yanıt geldiğinde");
     if (teacher) tur("yardim", "Öğrenci yardım istekleri", "Bir öğrenci seninle konuşmak istediğinde");
     sw.append(anahtar("Bildirimde mesaj içeriğini göster", "Kapalıyken bildirimde yalnızca kimden geldiği görünür. Kilit ekranında başkalarının mesajını okumasını önler.", d.ayar.onizleme === true, v => guncelle(d.id, { onizleme: v })));
@@ -48,6 +50,7 @@ export default async function mount(ctx) {
     dugme("Bu cihazda kapat", () => kapat(me), true);
   }
   bildirimCiz();
+  $("rhBtn").onclick = () => window.dispatchEvent(new Event("salvea-rehber"));
 
   /* ---------- Sohbet görünümü ---------- */
   const kaydet = (() => { let t; return yama => { temaUygula($("prev"), ayar()); clearTimeout(t); t = setTimeout(() => ayarKaydet(me.uid, yama).catch(e => toast("Kaydedilemedi: " + (e.code || e.message))), 400); }; })();
