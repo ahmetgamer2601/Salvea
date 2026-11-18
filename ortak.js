@@ -1,4 +1,6 @@
-
+// Başka bir sitenin çerçevesi içinde açılırsak üst sayfaya çık (tıklama hırsızlığı koruması)
+if (window.top !== window.self) { try { window.top.location = window.self.location; } catch (_) { document.documentElement.style.display = 'none'; } }
+// Tüm sayfalarda çalışan, Firebase'e bağlı OLMAYAN ortak davranışlar
 document.addEventListener('click', e => {
   const eye = e.target.closest('[data-eye]');
   if (eye) {
