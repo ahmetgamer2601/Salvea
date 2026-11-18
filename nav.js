@@ -1,6 +1,8 @@
 import { auth, db } from "./firebase.js";
 import { signOut } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 import { yerelOkundu } from "./ayar.js";
+import { kapat as pushKapat } from "./push.js";
+import { gelenDuyurular, okunmamis as duyuruOkunmamis, STILLER } from "./duyuru-veri.js";
 import { collection, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 const T = x => (x && x.toMillis ? x.toMillis() : typeof x === "number" ? x : 0);
 const isPast = r => new Date(r.tarih + "T" + r.saat + ":00") < new Date();
@@ -17,6 +19,9 @@ const IC = {
   randevu: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
   program: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
   kultur: '<polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>',
+  duyuru: '' + STILLER.duyuru.ikon,
+  sinif: '<path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11.5V16c0 1.5 3 3 6 3s6-1.5 6-3v-4.5"/>',
+  yardim: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 .9-1 1.7M12 17h.01"/>',
   ayarlar: '<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>',
   more: '<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>',
   out: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/>'
@@ -24,7 +29,7 @@ const IC = {
 const svg = k => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' + IC[k] + "</svg>";
 
 // Rozetler: aynı sayı hem alttaki düğmede hem açılır menüdeki satırda görünür
-const hosts = { sohbet: [], randevu: [] };
+const hosts = { sohbet: [], randevu: [], duyuru: [] };
 function addBadge(key, host, label) { const b = el("span", "nbadge"); b.hidden = true; b.setAttribute("aria-hidden", "true"); host.append(b); host.dataset.label = label; hosts[key].push([b, host]); }
 const setBadge = (key, n, what) => hosts[key].forEach(([b, h]) => { b.textContent = n > 9 ? "9+" : String(n); b.hidden = !n; h.setAttribute("aria-label", h.dataset.label + (n ? ", " + n + " " + what : "")); });
 const titleCount = () => { const n = Object.values(window.__salveaBadge || {}).reduce((x, y) => x + y, 0); document.title = (n ? "(" + n + ") " : "") + (document.title.replace(/^\(\d+\) /, "")); };
@@ -45,10 +50,12 @@ export function mountNav(me, active) {
     kultur: ["Bilgi kartları", "#/kultur", "Öğren, eğlen, tekrar et"],
     sohbet: ["Sohbet", "#/sohbet", ""],
     randevu: ["Randevu", "#/randevu", t ? "Randevuları yönet" : "Rehber öğretmenle görüş"],
-    ayarlar: ["Ayarlar", "#/ayarlar", "Bildirimler ve sohbet görünümü"]
+    ayarlar: ["Ayarlar", "#/ayarlar", "Bildirimler ve sohbet görünümü"],
+    duyuru: ["Duyurular", "#/duyuru", t ? "Duyuru yaz ve gönder" : "Öğretmenlerinden haberler"],
+    sinif: ["Sınıfım", "#/sinif", t ? "Sınıf sohbeti, onaylar, otomatik sorular" : "Sınıf öğretmenin ve sınıf sohbeti"]
   };
   const prim = t ? ["home", "gorev", "sohbet", "randevu"] : ["home", "akis", "gorev", "sohbet"];
-  const more = t ? ["akis", "kisi", "program", "kultur", "ayarlar"] : ["kisi", "program", "randevu", "kultur", "ayarlar"];
+  const more = t ? ["akis", "kisi", "sinif", "duyuru", "program", "kultur", "ayarlar"] : ["kisi", "sinif", "duyuru", "program", "randevu", "kultur", "ayarlar"];
 
   const dock = el("nav", "dock"); dock.setAttribute("aria-label", "Ana gezinme");
   prim.forEach(k => {
@@ -72,7 +79,8 @@ export function mountNav(me, active) {
     if (k in hosts) addBadge(k, a, P[k][0]);
     sheet.append(a);
   });
-  const out = el("button", "sh-i out"); out.type = "button"; out.innerHTML = svg("out") + "<span><b>Çıkış yap</b></span>"; sheet.append(out);
+  const yh = el("button", "sh-i"); yh.type = "button"; yh.innerHTML = svg("yardim") + "<span><b>Rehber</b><small>Salvea nasıl kullanılır?</small></span>"; yh.onclick = () => { close(false); window.dispatchEvent(new Event("salvea-rehber")); };
+  const out = el("button", "sh-i out"); out.type = "button"; out.innerHTML = svg("out") + "<span><b>Çıkış yap</b></span>"; sheet.append(yh, out);
 
   const scrim = el("div", "scrim"); scrim.hidden = true;
   const close = back => { sheet.hidden = scrim.hidden = true; mb.setAttribute("aria-expanded", "false"); if (back) mb.focus(); };
@@ -81,7 +89,8 @@ export function mountNav(me, active) {
   scrim.onclick = () => close(false);
   sheet.addEventListener("click", e => { if (e.target.closest("a")) close(false); });
   document.addEventListener("keydown", e => { if (e.key === "Escape" && !sheet.hidden) close(true); });
-  out.onclick = async () => { out.disabled = true; try { await signOut(auth); } catch (_) {} location.replace("index.html"); };
+  out.onclick = async () => { out.disabled = true; try { await pushKapat(me); } catch (_) {} try { await signOut(auth); } catch (_) {}   // bu cihazın bildirim aboneliği de kapanır (ortak cihazlarda başkası görmesin)
+    location.replace("index.html"); };
 
   dock.append(mb);
   document.body.classList.add("hasdock");
@@ -89,6 +98,7 @@ export function mountNav(me, active) {
   setActive(active);
   watchChat(me);
   watchRandevu(me);
+  watchDuyuru(me);
 }
 
 // Gezinme çubuğunda şu anki sayfayı işaretler (sayfalar kabuğun içinde değiştiği için çubuk yeniden kurulmaz)
@@ -111,6 +121,12 @@ function watchChat(me) {
     if (!first) snap.docChanges().forEach(ch => { if (ch.type === "removed") return; const c = est(ch.doc); if (unread(c, ch.doc.id) && c.son.id !== seen[ch.doc.id]) { seen[ch.doc.id] = c.son.id; if (window.__route !== "sohbet") toast("💬 " + (c.son.ad || "Yeni mesaj"), c.son.foto ? "📷 Fotoğraf" : (c.son.metin || ""), "#/sohbet?c=" + ch.doc.id); } });
     first = false;
   }, () => {});
+}
+
+// ---- Duyurular: okunmamış sayısı (açılışta, 5 dakikada bir ve duyurular okununca)
+function watchDuyuru(me) {
+  const say = async () => { try { setBadge("duyuru", duyuruOkunmamis(me, await gelenDuyurular(me)), "yeni duyuru"); } catch (_) {} };
+  say(); setInterval(say, 5 * 60e3); window.addEventListener("salvea-duyuru", () => setBadge("duyuru", 0, "yeni duyuru")); document.addEventListener("visibilitychange", () => { if (!document.hidden) say(); });
 }
 
 // ---- Randevu: öğretmende bekleyen talepler, öğrencide yanıt gelen talepler
