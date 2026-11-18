@@ -25,4 +25,4 @@ export async function gelenDuyurular(me) {
 export const okunmamis = (me, liste) => { let son = 0; try { son = +localStorage.getItem(GORULDU(me.uid)) || 0; } catch (_) {} return liste.filter(d => d.olusturan !== me.uid && d.ms > son).length; };
 export function goruldu(me) { try { localStorage.setItem(GORULDU(me.uid), String(Date.now())); } catch (_) {} window.dispatchEvent(new Event("salvea-duyuru")); }
 export const tarihYaz = v => { const d = new Date(v), s = d.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" }); return d.toDateString() === new Date().toDateString() ? "Bugün " + s : d.toLocaleDateString("tr-TR", { day: "numeric", month: "long" }) + " " + s; };
-s
+
