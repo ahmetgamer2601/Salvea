@@ -199,6 +199,7 @@ window.salveaRegister = async () => {
     if (isNaN(a) || a < 8 || a > 20) return bad("dogum", "Doğum tarihini kontrol et.");
     if (!mailOk(v("veli"))) return bad("veli", "Geçerli bir veli e-postası yaz.");
     if (a < 18 && !$("veliOnay").checked) return bad("veliOnay", "18 yaşından küçük öğrenciler için veli onayı gerekli.");
+    if (/(salvea|admin|yönetici|yonetici|rehber|öğretmen|ogretmen|müdür|mudur|moderat)/i.test(v("nick") || v("ad"))) return bad("nick", "Bu takma ad kullanılamaz (öğretmen ya da yönetici gibi görünüyor). Başka bir ad seç.");
     Object.assign(profile, { sinif: v("sinif"), sube: v("sube").toUpperCase(), dogum: v("dogum"), takmaAd: v("nick") || v("ad"), veliEposta: v("veli"), veliOnay: a < 18 });
   } else Object.assign(profile, { brans: $("brans").value });
   if (!$("kvkk").checked) return bad("kvkk", "Devam etmek için KVKK Aydınlatma Metni'ni onayla.");
