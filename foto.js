@@ -4,7 +4,7 @@ function ac(file) {
     if (!file || !(file.type || "").startsWith("image/")) return rej(new Error("Lütfen bir görsel dosyası seç."));
     if (file.size > MAX_DOSYA) return rej(new Error("Dosya çok büyük (en fazla 15 MB)."));
     const img = new Image(), url = URL.createObjectURL(file);
-    img.onload = () => { URL.revokeObjectURL(url); res(img); };
+    img.onload = () => { URL.revokeObjectURL(url); if (img.naturalWidth * img.naturalHeight > 40e6) return rej(new Error("Görselin çözünürlüğü çok yüksek. Daha küçük bir fotoğraf seç.")); res(img); };
     img.onerror = () => { URL.revokeObjectURL(url); rej(new Error("Görsel okunamadı")); };
     img.src = url;
   });
