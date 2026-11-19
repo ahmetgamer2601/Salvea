@@ -4,6 +4,7 @@ import { ayarYukle, ayar, ayarKaydet, temaUygula, TEMALAR, BALONLAR } from "../a
 
 export const html = `<header class="top"><div class="tile"><img src="logo.png" alt="Salvea"></div><div><b>Ayarlar</b><span id="sc"></span></div></header>
 <section class="setcard"><h2>Bildirimler</h2><p class="hint" id="bd">Yükleniyor…</p><div id="bdBtns" class="setbtns"></div><div id="bdSw"></div></section>
+<section class="setcard"><h2>Uygulama teması</h2><p class="hint">Tüm uygulama için. "Sistem" telefonunun ayarını izler. Bu tercih yalnızca bu cihazda saklanır.</p><div class="swg" id="uyTm"></div></section>
 <section class="setcard"><h2>Sohbet görünümü</h2>
 <div class="prev" id="prev"><div class="pr them">Merhaba, bugün nasılsın?</div><div class="pr me">İyiyim, teşekkürler!</div></div>
 <h3>Sohbet rengi</h3><div class="swg" id="tm"></div>
@@ -60,5 +61,14 @@ export default async function mount(ctx) {
   };
   secici("tm", TEMALAR, "sohbetTema", x => x.bg); secici("bl", BALONLAR, "balonRenk", x => x.bg);
   temaUygula($("prev"));
+
+  /* ---------- Uygulama teması (açık / koyu / sistem) ---------- */
+  const UYG = [{ id: "acik", ad: "Açık", bg: "#f4f0e4" }, { id: "koyu", ad: "Koyu", bg: "#141c19" }, { id: "sistem", ad: "Sistem", bg: "linear-gradient(90deg,#f4f0e4 50%,#141c19 50%)" }];
+  const uygCiz = () => $("uyTm").replaceChildren(...UYG.map(x => {
+    const b = el("button", "swb"), d = el("span", "swc"); b.type = "button"; b.setAttribute("aria-pressed", String(window.Tema.mod() === x.id)); b.setAttribute("aria-label", x.ad); b.title = x.ad; d.style.background = x.bg; b.append(d, el("small", "", x.ad));
+    b.onclick = () => { const r = d.getBoundingClientRect(); window.Tema.ayarla(x.id, r.left + r.width / 2, r.top + r.height / 2); uygCiz(); setTimeout(() => temaUygula($("prev")), 80); };
+    return b;
+  }));
+  if (window.Tema) uygCiz(); else $("uyTm").closest("section").hidden = true;
   $("okSw").append(anahtar("Okundu bilgisini göster", "Kapatırsan başkaları mesajlarını ne zaman okuduğunu göremez; sen de onların okundu bilgisini göremezsin.", !ayar().okunduGizle, v => { Object.assign(ayar(), { okunduGizle: !v }); return ayarKaydet(me.uid, { okunduGizle: !v }); }));
 }
