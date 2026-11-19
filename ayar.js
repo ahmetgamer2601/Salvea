@@ -35,7 +35,7 @@ export async function ayarKaydet(uid, yama) {
 }
 // Seçili temayı bir kapsayıcıya CSS değişkeni olarak uygular
 export function temaUygula(kok, a = ayar()) {
-  const t = TEMALAR.find(x => x.id === a.sohbetTema) || TEMALAR[0], b = BALONLAR.find(x => x.id === a.balonRenk) || BALONLAR[0], s = kok.style;
+  const koyu = document.documentElement.dataset.tema === "koyu", t = TEMALAR.find(x => x.id === (koyu && a.sohbetTema === "krem" ? "gece" : a.sohbetTema)) || TEMALAR[0], b = BALONLAR.find(x => x.id === a.balonRenk) || BALONLAR[0], s = kok.style;
   kok.dataset.tema = t.id; s.setProperty("--cbg", t.bg); s.setProperty("--cdot", t.dot); s.setProperty("--them", t.them); s.setProperty("--them-fg", t.themFg);
   s.setProperty("--sep", t.sep); s.setProperty("--sep-fg", t.sepFg); s.setProperty("--meta", t.meta);
   s.setProperty("--me", b.bg); s.setProperty("--me-fg", yaziRengi(b.bg)); s.setProperty("--me-meta", yaziRengi(b.bg) === "#ffffff" ? "rgba(255,255,255,.75)" : "#5b6b61");
