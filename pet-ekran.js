@@ -260,7 +260,7 @@ export function petEkraniAc({ chatId, me, getChat, onKapat }) {
   /* ---------- maskot rehberi ---------- */
   function turAdimlari() {
     const { d } = veri(), q = s => () => panel.querySelector(s) || sahne.querySelector(s) || null, a = [];
-    a.push({ hedef: () => hayvanKutu.querySelector(".pe-oyun") || hayvanKutu, metin: m => "Merhaba, ben " + m.ad + "! Bir " + m.tanim + "yim. " + (d.mod === "secim" ? "Sınıfınızın hayvanını birlikte seçmeniz için buradayım." : "Bu pencerede sınıfınızın hayvanına birlikte bakacaksınız.") + " Ona dokunursan tepki verir." });
+    a.push({ hedef: () => hayvanKutu.querySelector(".pe-oyun") || hayvanKutu, metin: m => "Merhaba, ben " + m.ad + "! Bir " + m.tanim + ". " + (d.mod === "secim" ? "Sınıfınızın hayvanını birlikte seçmeniz için buradayım." : "Bu pencerede sınıfınızın hayvanına birlikte bakacaksınız.") + " Ona dokunursan tepki verir." });
     a.push({ hedef: q(".pe-ust-seri"), metin: () => "Bu, sınıfınızın günlük sohbet serisi. Her gün yazışırsanız büyür. Hafta sonu seriyi bozmaz, istersen ayda iki kez dondurabilirsin." });
     if (d.mod === "secim") {
       a.push({ hedef: q(".pe-kart"), metin: () => "Bir karta dokunup oy ver. En çok oyu alan hayvan sınıfınız olur. Önce davranan değil, herkes birlikte karar verir." });
