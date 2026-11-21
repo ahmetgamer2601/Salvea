@@ -1,6 +1,8 @@
 // Görünüm: sohbet (app.js yönlendiricisi tarafından yüklenir)
 import { db } from "../firebase.js";
 import { resizeFit } from "../foto.js";
+import { gunAnahtar, seriHesapla } from "../petmantik.js";
+import { petBakim, gunlukOdul } from "../pet.js";
 import { SORULAR } from "../veri.js";
 import { ayarYukle, ayar, ayarKaydet, temaUygula, TEMALAR, BALONLAR, yerelOkundu, yerelOkunduYaz } from "../ayar.js";
 import { bildir } from "../push.js";
@@ -88,15 +90,7 @@ const closed = c => c.kapali === true || (c.bitisTs && T(c.bitisTs) < Date.now()
 
   /* ---------- Sohbet serisi ---------- */
   // Her gün yazışmaya devam edince seri büyür. Birebir: iki kişi de; takım: yarısı; sınıf: %25'i (en az 3). Hafta sonu seriyi ne artırır ne bozar.
-  const gunAnahtar = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
-  function seriHesapla(c) {
-    const uyeler = (c.uyeler || []).filter(u => u !== "salvea"), g = c.gunler || {}, sayim = {}; uyeler.forEach(u => (g[u] || []).forEach(d => sayim[d] = (sayim[d] || 0) + 1));
-    const esik = c.tur === "dm" ? 2 : c.tur === "sinif" ? Math.max(3, Math.ceil(uyeler.length * 0.25)) : Math.max(2, Math.ceil(uyeler.length / 2));
-    const tamam = k => (sayim[k] || 0) >= esik, bugun = new Date(), bk = gunAnahtar(bugun), hs = d => d.getDay() === 0 || d.getDay() === 6;
-    let d = new Date(bugun), n = 0, say = 0; if (!tamam(bk) && !hs(d)) d.setDate(d.getDate() - 1);
-    while (say++ < 400) { if (hs(d)) { d.setDate(d.getDate() - 1); continue; } if (!tamam(gunAnahtar(d))) break; n++; d.setDate(d.getDate() - 1); }
-    return { n, bugunSayi: sayim[bk] || 0, esik, tehlike: n > 0 && !tamam(bk) && !hs(bugun) && bugun.getHours() >= 16 };
-  }
+  // gunAnahtar ve seriHesapla artık petmantik.js içinde (dondurma desteğiyle, test edilebilir)
   function gunlerYama(c) { const bk = gunAnahtar(new Date()), onceki = (c.gunler || {})[me.uid] || []; return onceki.includes(bk) ? {} : { ["gunler." + me.uid]: [...onceki.slice(-34), bk] }; }
   function seriChip(n, tehlike) { const s = el("span", "seri-chip" + (tehlike ? " tehlike" : "") + (n >= 30 ? " b3" : n >= 7 ? " b2" : "")); s.append(I("flame"), String(n)); s.title = n + " günlük seri" + (tehlike ? ". Bugün yazarsan sürer!" : ""); return s; }
   function seriGoster(c) { const k = $("cseri"); if (!k) return; const sr = seriHesapla(c); k.replaceChildren(...(sr.n >= 1 ? [seriChip(sr.n, sr.tehlike)] : [])); }
@@ -149,7 +143,7 @@ const closed = c => c.kapali === true || (c.bitisTs && T(c.bitisTs) < Date.now()
     if (mobil() && !(history.state && history.state.sohbet)) history.pushState({ sohbet: id }, "");   // telefonun geri tuşu önce listeye dönsün
     const c = C(); $("ct").textContent = title(c); $("cavw").replaceChildren(avc(c));
     sub(); comp(); renderList();
-    dur = {}; if (c.tur === "dm") unsubDur = ctx.snap(durRef(), s => { dur = s.exists() ? s.data() : {}; sub(); }, () => {});   // çevrimiçi/yazıyor yalnızca birebir sohbette (grupta her yazı herkese okuma olarak yansıyordu)
+    petBakim(c).catch(() => {}); dur = {}; if (c.tur === "dm") unsubDur = ctx.snap(durRef(), s => { dur = s.exists() ? s.data() : {}; sub(); }, () => {});   // çevrimiçi/yazıyor yalnızca birebir sohbette (grupta her yazı herkese okuma olarak yansıyordu)
     unsubMsg = ctx.snap(query(collection(db, "sohbetler", id, "mesajlar"), orderBy("ts", "desc"), limit(LIM)), snap => {
       snap.docs.forEach(d => tumM.set(d.id, mesajOlustur(d))); if (!ank) ank = snap.docs[snap.docs.length - 1] || null; if (!eskiBitti && !snap.metadata.fromCache && snap.docs.length < LIM) eskiBitti = true; msgs = msgListe(id);
       paint(); eskiDugme(); markRead();
@@ -392,7 +386,7 @@ const closed = c => c.kapali === true || (c.bitisTs && T(c.bitisTs) < Date.now()
     const b = writeBatch(db);
     b.set(mref, m);
     b.update(ref(), { son: { id: mref.id, uid: me.uid, ad: myName, metin: text || "Fotoğraf", foto: !!foto }, sonTs: serverTimestamp(), ["okundu." + me.uid]: serverTimestamp(), ...gunlerYama(c) });
-    try { await b.commit(); if (c.tur === "dm") setDoc(durRef(), { yaziyor: { [me.uid]: 0 } }, { merge: true }).catch(() => {}); bildir("sohbet", { sohbet: cid, mesaj: mref.id }); setTimeout(() => kutlaKontrol(chats[cid]), 900); }
+    try { await b.commit(); if (c.tur === "dm") setDoc(durRef(), { yaziyor: { [me.uid]: 0 } }, { merge: true }).catch(() => {}); bildir("sohbet", { sohbet: cid, mesaj: mref.id }); if (c.tur === "sinif") gunlukOdul(me.uid).catch(() => {}); setTimeout(() => kutlaKontrol(chats[cid]), 900); }
     catch (e) { toast("Mesaj gönderilemedi: " + (e.code || e.message)); if (!custom) { $("txt").value = text; grow(); } }
   }
 
