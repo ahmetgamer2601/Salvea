@@ -125,6 +125,7 @@ const closed = c => c.kapali === true || (c.bitisTs && T(c.bitisTs) < Date.now()
     const t = (c.son.metin || "").replace(/^💡 /, ""); if (c.son.metin && c.son.metin.startsWith("💡 ")) f.append(I("bulb", "mini")); f.append(c.son.foto && !c.son.metin ? "Fotoğraf" : t); return f;
   }
   function renderList() {
+    rozet();
     const list = Object.values(chats).filter(c => !(c.tur === "dm" && gizliMs(c) && gizliMs(c) >= T(c.sonTs))).sort((a, b) => (T(b.sonTs) || T(b.olusturma)) - (T(a.sonTs) || T(a.olusturma)));
     if (!list.length) return $("clist").replaceChildren(el("div", "emptym kucuk", "Henüz sohbetin yok. Artı düğmesiyle rehber öğretmenine yazabilirsin."));
     $("clist").replaceChildren(...list.map(c => {
@@ -164,7 +165,10 @@ const closed = c => c.kapali === true || (c.bitisTs && T(c.bitisTs) < Date.now()
   ctx.on(window, "salvea-cikarildi", e => { const id = e.detail && e.detail.id; if (id && (curId === id || chats[id])) cikarildi(id); });
   function kapatSohbet() {
     if (unsubMsg) unsubMsg(); if (unsubDur) unsubDur(); unsubMsg = unsubDur = null; clearInterval(hb); curId = null; kapatSheet();
-    $("app").classList.remove("inchat"); $("chat").hidden = true; $("emp").hidden = false; renderList();
+    const ap = $("app"), chp = $("chat"), emp = $("emp"); ap.classList.remove("inchat");
+    const bitir = () => { if (!ap.classList.contains("inchat")) { chp.hidden = true; emp.hidden = false; } };
+    if (mobil()) setTimeout(bitir, 340); else bitir();   // telefonda panel kayarak kapanırken içerik kaybolmasın
+    renderList();
   }
   $("cback").onclick = () => { if (history.state && history.state.sohbet) history.back(); else kapatSohbet(); };
   ctx.on(window, "popstate", () => { if ($("app").classList.contains("inchat") && !(history.state && history.state.sohbet)) kapatSohbet(); });
@@ -374,7 +378,11 @@ const closed = c => c.kapali === true || (c.bitisTs && T(c.bitisTs) < Date.now()
   };
   // Bilgisayarda Enter gönderir; telefonda Enter yeni satırdır (gönder düğmesi gönderir)
   $("txt").onkeydown = e => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing && !matchMedia("(pointer:coarse)").matches) { e.preventDefault(); send(); } };
-  $("send").onclick = send;
+  // Gönder'e basınca odak yazı alanında kalır: klavye kapanıp açılmaz, ekran zıplamaz
+  { const sb = $("send"); let sonDokun = 0;
+    sb.addEventListener("mousedown", e => e.preventDefault());
+    sb.addEventListener("touchend", e => { e.preventDefault(); sonDokun = Date.now(); send(); }, { passive: false });
+    sb.onclick = () => { if (Date.now() - sonDokun < 700) return; send(); }; }
   async function send(over) {
     const custom = typeof over === "string", c = C(), cid = curId, text = custom ? over : $("txt").value.trim(); if (!c || (!text && (custom || !pend)) || closed(c)) return;
     const mref = doc(collection(db, "sohbetler", cid, "mesajlar")), foto = custom ? null : pend, yn = custom ? null : reply;
@@ -450,5 +458,29 @@ const closed = c => c.kapali === true || (c.bitisTs && T(c.bitisTs) < Date.now()
     }, 6000);
     ctx.leave(() => clearTimeout(tmo));
   }
+  /* ---------- Geri düğmesi rozeti: başka sohbetlere gelen mesajlar ---------- */
+  { const bd = el("span", "cb-bdg"); bd.hidden = true; $("cback").append(bd); }
+  function rozet() {
+    const bd = $("cback") && $("cback").querySelector(".cb-bdg"); if (!bd) return;
+    const n = Object.values(chats).filter(c => c.id !== curId && unread(c)).length;
+    bd.hidden = !n; bd.textContent = n > 9 ? "9+" : String(n);
+    $("cback").setAttribute("aria-label", n ? "Sohbet listesine dön, " + n + " okunmamış sohbet var" : "Sohbet listesine dön");
+  }
+
+  /* ---------- Klavye/ekran kayması: görünür alanı CSS'e yaz, alt kısım (yazı alanı + gönder) yerinde dursun ---------- */
+  { const vv = window.visualViewport, kok = document.documentElement; let raf = 0;
+    const guncelle = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => {
+      const box = $("msgs"), alta = box ? box.scrollHeight - box.scrollTop - box.clientHeight < 160 : false;
+      kok.style.setProperty("--vvh", (vv ? vv.height : innerHeight) + "px"); kok.style.setProperty("--vvt", (vv ? vv.offsetTop : 0) + "px");
+      if (alta && box) box.scrollTop = box.scrollHeight;
+    }); };
+    guncelle();
+    if (vv) { ctx.on(vv, "resize", guncelle); ctx.on(vv, "scroll", guncelle); }
+    ctx.on(window, "resize", guncelle); ctx.on(window, "orientationchange", guncelle);
+    const t = $("txt");
+    ctx.on(t, "focus", () => { $("app").classList.add("klavye"); guncelle(); });
+    ctx.on(t, "blur", () => setTimeout(() => { if (document.activeElement !== t) { $("app").classList.remove("klavye"); guncelle(); } }, 120));
+    ctx.leave(() => { cancelAnimationFrame(raf); kok.style.removeProperty("--vvh"); kok.style.removeProperty("--vvt"); }); }
+
   listeAl();   // nav.js'ten hazır liste varsa hemen çiz (tüm değişkenler tanımlandıktan sonra, her rol için)
 }
