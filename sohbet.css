@@ -138,3 +138,4 @@ body.chatmode:has(.app.inchat) .dock{display:none}
 .v-sohbet .bub.bot{background:linear-gradient(150deg,#fbf3dc,#f5e8c9);border:1.5px solid #e6d29a;color:#3d3414}.v-sohbet .bot-nm{display:block;font-size:.74rem;font-weight:700;color:#a07d12;margin-bottom:3px}
 .v-sohbet .botav{width:28px;height:28px;border-radius:50%;background:var(--forest);object-fit:contain;padding:3px;display:block}
 .v-sohbet .onay{display:flex;gap:10px;padding:6px 6px 0}.v-sohbet .onay .btn{margin:0;flex:1}
+.v-sohbet .eski-btn{align-self:center;flex:none;margin:6px 0 10px;padding:7px 16px;border:1.5px solid var(--line);border-radius:99px;background:var(--paper);color:var(--forest2);font:inherit;font-size:.82rem;font-weight:600;cursor:pointer}.v-sohbet .eski-btn:disabled{opacity:.6;cursor:default}
