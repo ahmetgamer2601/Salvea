@@ -267,3 +267,8 @@ body.rh-acik{overflow:hidden}
 .sn-alt{font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:#6d7a72;font-weight:600;margin-top:6px}
 .sn-bek{background:#fbf3dc;border:1.5px solid #e6d29a;border-radius:14px;padding:12px 14px;display:grid;gap:6px}.sn-bek small{color:#6b5a1a}.sn-bek .btn{justify-self:start;margin-top:4px}
 .sn-rapor{border-top:1px solid var(--line);padding:12px 0}.sn-rapor p{margin:4px 0;line-height:1.5;word-break:break-word}.sn-rapor small{display:block;color:#5b6b61;margin-bottom:8px}
+.cikar-ov{position:fixed;inset:0;z-index:500;background:rgba(10,16,13,.55);display:grid;place-items:center;padding:20px;animation:cikarOv .2s ease}
+.cikar-k{background:var(--paper);color:var(--ink);border-radius:20px;max-width:380px;width:100%;padding:24px 22px;box-shadow:0 24px 70px rgba(0,0,0,.35);text-align:center;animation:cikarK .28s cubic-bezier(.2,.9,.3,1.2)}
+.cikar-k h3{margin:0 0 8px;font-size:1.1rem}.cikar-k p{margin:0 0 18px;font-size:.92rem;line-height:1.5;color:#5b6b61}
+@keyframes cikarOv{from{opacity:0}to{opacity:1}}@keyframes cikarK{from{transform:translateY(14px) scale(.96);opacity:0}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.cikar-ov,.cikar-k{animation:none}}
