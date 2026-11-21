@@ -4,7 +4,7 @@ import { resizeFit } from "../foto.js";
 import { SORULAR } from "../veri.js";
 import { ayarYukle, ayar, ayarKaydet, temaUygula, TEMALAR, BALONLAR, yerelOkundu, yerelOkunduYaz } from "../ayar.js";
 import { bildir } from "../push.js";
-import { collection, query, where, orderBy, limit, getDocs, getDoc, doc, setDoc, updateDoc, writeBatch, serverTimestamp, Timestamp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+import { collection, query, where, orderBy, limit, startAfter, getDocs, getDoc, doc, setDoc, updateDoc, writeBatch, serverTimestamp, Timestamp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
 const P = {
   plus: '<path d="M12 5v14M5 12h14"/>', back: '<path d="M19 12H5M12 19l-7-7 7-7"/>', more: '<circle cx="12" cy="5" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="19" r="1.7"/>',
@@ -60,7 +60,8 @@ export default async function mount(ctx) {
   const hm = ms => new Date(ms).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
   const dayLabel = ms => { const d = new Date(ms), t = new Date(), y = new Date(t); y.setDate(t.getDate() - 1); const k = x => x.toDateString(); return k(d) === k(t) ? "Bugün" : k(d) === k(y) ? "Dün" : d.toLocaleDateString("tr-TR", { day: "numeric", month: "long" }); };
   const mobil = () => matchMedia("(max-width:760px)").matches;
-  let chats = {}, curId = null, msgs = [], nodes = new Map(), unsubMsg = null, unsubDur = null, hb = null, reply = null, pend = null, lastTyping = 0, firstLoad = true, lastDay = "", seen = {}, people = [], dur = {};
+  let chats = {}, curId = null, msgs = [], nodes = new Map(), unsubMsg = null, unsubDur = null, hb = null, reply = null, pend = null, lastTyping = 0, firstLoad = true, lastDay = "", seen = {}, people = [], dur = {}, tumM = new Map(), ank = null, eskiBitti = false, eskiYukleniyor = false;
+const LIM = 40;   // açılışta okunan mesaj sayısı (eskiden 120)
   let istenenSohbet = ctx.query.get("c"), istenenKisi = ctx.query.get("dm");
   const C = () => chats[curId];
   const other = c => c.uyeler.find(u => u !== me.uid);
@@ -103,13 +104,17 @@ export default async function mount(ctx) {
   }
 
   /* ---------- Sohbet listesi ---------- */
-  ctx.snap(query(collection(db, "sohbetler"), where("uyeler", "array-contains", me.uid)), snap => {
+  const listeKaynak = snap => {
     chats = {}; snap.forEach(d => chats[d.id] = { id: d.id, ...d.data({ serverTimestamps: "estimate" }) });
     renderList();
     if (curId && chats[curId]) { sub(); comp(); updTicks(); markRead(); }
     if (istenenSohbet && chats[istenenSohbet]) { const id = istenenSohbet; istenenSohbet = null; open(id); }
     if (istenenKisi) { const u = istenenKisi; istenenKisi = null; kisiyeYaz(u); }
-  }, e => toast("Sohbetler okunamadı: " + (e.code || e.message)));
+  };
+  // Liste, nav.js'in zaten dinlediği sorgudan gelir: aynı sorguyu ikinci kez dinlemek okumayı ikiye katlıyordu.
+  const listeAl = () => { if (window.__salveaSohbetler) listeKaynak(window.__salveaSohbetler); };
+  ctx.on(window, "salvea-sohbetler", listeAl);
+  { let kendi = false; const fb = setTimeout(() => { if (!window.__salveaSohbetler && !kendi) { kendi = true; ctx.snap(query(collection(db, "sohbetler"), where("uyeler", "array-contains", me.uid)), listeKaynak, e => toast("Sohbetler okunamadı: " + (e.code || e.message))); } }, 5000); ctx.leave(() => clearTimeout(fb)); }
   function onizleme(c) {
     const f = document.createDocumentFragment(); if (!c.son) { f.append("Henüz mesaj yok"); return f; }
     if (c.son.uid === me.uid) f.append("Sen: "); else if (c.tur === "takim") f.append((c.son.ad || "").split(" ")[0] + ": ");
@@ -133,16 +138,16 @@ export default async function mount(ctx) {
   /* ---------- Sohbeti aç / kapat ---------- */
   function open(id) {
     if (unsubMsg) unsubMsg(); if (unsubDur) unsubDur(); dur = {}; clearInterval(hb);
-    curId = id; msgs = []; nodes = new Map(); lastDay = ""; firstLoad = true; reply = null; pend = null; kapatSheet();
+    curId = id; msgs = []; nodes = new Map(); lastDay = ""; firstLoad = true; tumM = new Map(); ank = null; eskiBitti = false; eskiYukleniyor = false; reply = null; pend = null; kapatSheet();
     $("msgs").replaceChildren(); updReply(); updPv(); $("newp").hidden = true;
     $("app").classList.add("inchat"); $("emp").hidden = true; $("chat").hidden = false;
     if (mobil() && !(history.state && history.state.sohbet)) history.pushState({ sohbet: id }, "");   // telefonun geri tuşu önce listeye dönsün
     const c = C(); $("ct").textContent = title(c); $("cavw").replaceChildren(avc(c));
     sub(); comp(); renderList();
-    unsubDur = ctx.snap(durRef(), s => { dur = s.exists() ? s.data() : {}; sub(); }, () => {});
-    unsubMsg = ctx.snap(query(collection(db, "sohbetler", id, "mesajlar"), orderBy("ts", "desc"), limit(120)), snap => {
-      msgs = snap.docs.map(d => ({ id: d.id, ...d.data({ serverTimestamps: "estimate" }), pending: d.metadata.hasPendingWrites })).reverse().filter(m => !m.ts || T(m.ts) > gizliMs(chats[id] || {}));
-      paint(); markRead();
+    dur = {}; if (c.tur === "dm") unsubDur = ctx.snap(durRef(), s => { dur = s.exists() ? s.data() : {}; sub(); }, () => {});   // çevrimiçi/yazıyor yalnızca birebir sohbette (grupta her yazı herkese okuma olarak yansıyordu)
+    unsubMsg = ctx.snap(query(collection(db, "sohbetler", id, "mesajlar"), orderBy("ts", "desc"), limit(LIM)), snap => {
+      snap.docs.forEach(d => tumM.set(d.id, mesajOlustur(d))); if (!ank) ank = snap.docs[snap.docs.length - 1] || null; if (!eskiBitti && !snap.metadata.fromCache && snap.docs.length < LIM) eskiBitti = true; msgs = msgListe(id);
+      paint(); eskiDugme(); markRead();
     }, e => toast("Mesajlar okunamadı: " + (e.code || e.message)));
     beat(); hb = ctx.every(beat, 60000);
   }
@@ -165,7 +170,7 @@ export default async function mount(ctx) {
     else { const sr = seriHesapla(c); s.textContent = c.uyeler.length + " üye" + (c.tur === "sinif" ? " · bugün " + sr.bugunSayi + " kişi yazdı" : "") + (online.length ? " · " + online.length + " çevrimiçi" : ""); }
   }
   ctx.every(sub, 4000);
-  function beat() { if (!curId || document.hidden || !C() || closed(C())) return; setDoc(durRef(), { aktif: { [me.uid]: Date.now() } }, { merge: true }).catch(() => {}); }
+  function beat() { if (!curId || document.hidden || !C() || closed(C()) || C().tur !== "dm") return; setDoc(durRef(), { aktif: { [me.uid]: Date.now() } }, { merge: true }).catch(() => {}); }
   ctx.on(document, "visibilitychange", () => { if (!document.hidden) { beat(); markRead(); } });
   $("chp").onclick = () => { const c = C(); if (!c) return; if (c.tur === "dm") profilGit(other(c)); else uyeler(c); };
   $("cmore").onclick = () => {
@@ -203,6 +208,33 @@ export default async function mount(ctx) {
     acSheet("Sohbet görünümü", el("h4", "", "Sohbet rengi"), grup(TEMALAR, "sohbetTema", x => x.bg), el("h4", "", "Mesaj rengi"), grup(BALONLAR, "balonRenk", x => x.bg), ok);
   }
   const tumunuYenile = () => { nodes.forEach(n => n._sig = ""); updTicks(); };
+
+  /* ---------- Mesaj havuzu ve eski mesajlar (kota: açılışta az oku, gerekirse sayfa sayfa getir) ---------- */
+  const mesajOlustur = d => ({ id: d.id, ...d.data({ serverTimestamps: "estimate" }), pending: d.metadata.hasPendingWrites });
+  const msgListe = id => [...tumM.values()].filter(m => !m.ts || T(m.ts) > gizliMs(chats[id] || {})).sort((a, b) => ((T(a.ts) || Infinity) - (T(b.ts) || Infinity)) || (a.id < b.id ? -1 : 1));
+  function eskiDugme() {
+    const box = $("msgs"), b0 = box.querySelector(".eski-btn");
+    if (eskiBitti || !ank) { if (b0) b0.remove(); return; }
+    if (b0) return;
+    const b = el("button", "eski-btn", "Daha eski mesajlar"); b.type = "button"; b.onclick = eskiYukle; box.prepend(b);
+  }
+  function yenidenCiz() {
+    const box = $("msgs"), h0 = box.scrollHeight, t0 = box.scrollTop;
+    box.replaceChildren(); nodes = new Map(); lastDay = ""; firstLoad = true;
+    paint(); eskiDugme();
+    box.scrollTop = t0 + (box.scrollHeight - h0);   // okuduğun yerde kal
+  }
+  async function eskiYukle() {
+    const cid = curId; if (!cid || !ank || eskiYukleniyor) return;
+    eskiYukleniyor = true; const b = $("msgs").querySelector(".eski-btn"); if (b) { b.disabled = true; b.textContent = "Yükleniyor…"; }
+    try {
+      const s = await getDocs(query(collection(db, "sohbetler", cid, "mesajlar"), orderBy("ts", "desc"), startAfter(ank), limit(LIM)));
+      if (cid !== curId) return;
+      s.docs.forEach(d => tumM.set(d.id, mesajOlustur(d))); if (s.docs.length) ank = s.docs[s.docs.length - 1]; if (s.docs.length < LIM) eskiBitti = true;
+      msgs = msgListe(cid); yenidenCiz();
+    } catch (e) { toast("Eski mesajlar okunamadı: " + (e.code || e.message)); const b2 = $("msgs").querySelector(".eski-btn"); if (b2) { b2.disabled = false; b2.textContent = "Daha eski mesajlar"; } }
+    finally { eskiYukleniyor = false; }
+  }
 
   /* ---------- Mesajları çiz ---------- */
   function readState(m) {
@@ -278,7 +310,7 @@ export default async function mount(ctx) {
     if (!closed(c)) satirlar.push(satir("reply", "Yanıtla", null, () => { reply = m; updReply(); $("txt").focus(); }));
     if (m.metin) satirlar.push(satir("copy", "Kopyala", null, () => kopyala(m.metin.replace(/^💡 /, ""))));
     if (m.uid !== me.uid && m.uid !== "salvea" && !m.bot) satirlar.push(satir("flag", "Öğretmene bildir", "Uygunsuz bir mesajı öğretmenlerine iletir", () => onayla("Mesaj bildirilsin mi?", "Mesajın bir kopyası öğretmenlerine gider. Yanlışlıkla bildirmek sorun değil.", () => rapor(m))));
-    if (m.uid === me.uid && !ayar().okunduGizle) { const o = c.uyeler.filter(u => u !== me.uid), rd = o.filter(u => T(c.okundu && c.okundu[u]) >= T(m.ts)).map(u => (c.uyeAd[u] || "").split(" ")[0]); satirlar.push(el("p", "bilgi", rd.length ? "Okuyanlar: " + rd.join(", ") : "Henüz okunmadı")); }
+    if (m.uid === me.uid && c.tur === "dm" && !ayar().okunduGizle) { const o = c.uyeler.filter(u => u !== me.uid), rd = o.filter(u => T(c.okundu && c.okundu[u]) >= T(m.ts)).map(u => (c.uyeAd[u] || "").split(" ")[0]); satirlar.push(el("p", "bilgi", rd.length ? "Okuyanlar: " + rd.join(", ") : "Henüz okunmadı")); }
     if (!closed(c) && (m.uid === me.uid || (me.role === "teacher" && c.tur !== "dm"))) satirlar.push(satir("trash", "Herkesten sil", "Mesaj ve fotoğrafı kalıcı olarak silinir", () => del(m), true));
     acSheet("", ...satirlar);
   }
@@ -301,7 +333,7 @@ export default async function mount(ctx) {
     const c = C(); if (!c || document.hidden || !msgs.length) return;
     const lo = [...msgs].reverse().find(m => m.uid !== me.uid && !m.pending); if (!lo) return;
     yerelOkunduYaz(me.uid, c.id, T(lo.ts));   // bu cihazdaki rozetler için
-    if (ayar().okunduGizle) return renderList();
+    if (c.tur !== "dm" || ayar().okunduGizle) return renderList();   // grupta okundu bilgisi sunucuya yazılmaz (üye sayısı kadar okuma doğuruyordu)
     if (T(lo.ts) > T(c.okundu && c.okundu[me.uid])) updateDoc(ref(), { ["okundu." + me.uid]: serverTimestamp() }).catch(() => {});
     renderList();
   }
@@ -319,7 +351,7 @@ export default async function mount(ctx) {
   const grow = () => { const t = $("txt"); t.style.height = "auto"; t.style.height = Math.min(t.scrollHeight, 120) + "px"; sendDurum(); };
   $("txt").oninput = () => {
     grow();
-    if (curId && Date.now() - lastTyping > 2500) { lastTyping = Date.now(); setDoc(durRef(), { yaziyor: { [me.uid]: Date.now() } }, { merge: true }).catch(() => {}); }
+    if (curId && C() && C().tur === "dm" && Date.now() - lastTyping > 2500) { lastTyping = Date.now(); setDoc(durRef(), { yaziyor: { [me.uid]: Date.now() } }, { merge: true }).catch(() => {}); }
   };
   // Bilgisayarda Enter gönderir; telefonda Enter yeni satırdır (gönder düğmesi gönderir)
   $("txt").onkeydown = e => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing && !matchMedia("(pointer:coarse)").matches) { e.preventDefault(); send(); } };
@@ -333,7 +365,7 @@ export default async function mount(ctx) {
     const b = writeBatch(db);
     b.set(mref, m);
     b.update(ref(), { son: { id: mref.id, uid: me.uid, ad: myName, metin: text || "Fotoğraf", foto: !!foto }, sonTs: serverTimestamp(), ["okundu." + me.uid]: serverTimestamp(), ...gunlerYama(c) });
-    try { await b.commit(); setDoc(durRef(), { yaziyor: { [me.uid]: 0 } }, { merge: true }).catch(() => {}); bildir("sohbet", { sohbet: cid, mesaj: mref.id }); setTimeout(() => kutlaKontrol(chats[cid]), 900); }
+    try { await b.commit(); if (c.tur === "dm") setDoc(durRef(), { yaziyor: { [me.uid]: 0 } }, { merge: true }).catch(() => {}); bildir("sohbet", { sohbet: cid, mesaj: mref.id }); setTimeout(() => kutlaKontrol(chats[cid]), 900); }
     catch (e) { toast("Mesaj gönderilemedi: " + (e.code || e.message)); if (!custom) { $("txt").value = text; grow(); } }
   }
 
@@ -383,15 +415,16 @@ export default async function mount(ctx) {
   if (me.role === "teacher") {
     const sk = "salvea_sweep_" + me.uid;
     const tmo = setTimeout(async () => {
-      if (Date.now() - +(localStorage.getItem(sk) || 0) < 36e5) return;
+      if (Date.now() - +(localStorage.getItem(sk) || 0) < 864e5) return;
       try {
         localStorage.setItem(sk, String(Date.now()));
-        for (const id of Object.keys(chats).slice(0, 30)) {
+        for (const id of Object.values(chats).sort((a, b) => T(b.sonTs) - T(a.sonTs)).slice(0, 8).map(c => c.id)) {
           const s = await getDocs(query(collection(db, "sohbetler", id, "mesajlar"), where("fotoSil", "<", Timestamp.now()), limit(20)));
           for (const d of s.docs) if (d.data().foto) await updateDoc(d.ref, { foto: null }).catch(() => {});
         }
       } catch (_) {}
     }, 6000);
     ctx.leave(() => clearTimeout(tmo));
+  listeAl();   // nav.js'ten hazır liste varsa hemen çiz (değişkenlerin hepsi tanımlandıktan sonra)
   }
 }
