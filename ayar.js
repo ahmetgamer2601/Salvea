@@ -25,13 +25,20 @@ export async function ayarYukle(uid) {
   kim = uid; let a = {};
   try { a = JSON.parse(localStorage.getItem("salvea_ayar_" + uid) || "{}"); } catch (_) {}
   onbellek = { ...VARSAYILAN, ...a };
-  try { const s = await getDoc(doc(db, "ayarlar", uid)); if (s.exists()) { const d = s.data(); onbellek = { ...VARSAYILAN, sohbetTema: d.sohbetTema, balonRenk: d.balonRenk, okunduGizle: d.okunduGizle === true, rehber: +d.rehber || 0 }; localStorage.setItem("salvea_ayar_" + uid, JSON.stringify(onbellek)); } } catch (_) {}
+  try { const s = await getDoc(doc(db, "ayarlar", uid)); if (s.exists()) { const d = s.data(); onbellek = { ...VARSAYILAN, sohbetTema: d.sohbetTema, balonRenk: d.balonRenk, okunduGizle: d.okunduGizle === true, rehber: +d.rehber || 0, ...(d.env ? { env: { mama: +d.env.mama || 0, su: +d.env.su || 0, odul: String(d.env.odul || "") } } : {}) }; localStorage.setItem("salvea_ayar_" + uid, JSON.stringify(onbellek)); } } catch (_) {}
   return onbellek;
+}
+// Evcil hayvan çantası (mama / su). Ayar belgesinde durur: oturum başına zaten okunan belge, ek okuma yok.
+export const ENV0 = { mama: 3, su: 3, odul: "" };   // yeni öğrenciye başlangıç hediyesi
+export const env = () => ({ ...ENV0, ...((onbellek && onbellek.env) || {}) });
+export async function envYama(uid, fark = {}, ek = {}) {
+  const e = env(); for (const k of ["mama", "su"]) if (fark[k]) e[k] = Math.max(0, Math.min(999, e[k] + fark[k]));
+  Object.assign(e, ek); await ayarKaydet(uid, { env: { mama: e.mama, su: e.su, odul: String(e.odul || "") } });
 }
 export async function ayarKaydet(uid, yama) {
   onbellek = { ...ayar(), ...yama };
   try { localStorage.setItem("salvea_ayar_" + uid, JSON.stringify(onbellek)); } catch (_) {}
-  await setDoc(doc(db, "ayarlar", uid), { sohbetTema: onbellek.sohbetTema, balonRenk: onbellek.balonRenk, okunduGizle: onbellek.okunduGizle === true, rehber: +onbellek.rehber || 0, guncelleme: serverTimestamp() });
+  await setDoc(doc(db, "ayarlar", uid), { sohbetTema: onbellek.sohbetTema, balonRenk: onbellek.balonRenk, okunduGizle: onbellek.okunduGizle === true, rehber: +onbellek.rehber || 0, ...(onbellek.env ? { env: onbellek.env } : {}), guncelleme: serverTimestamp() });
 }
 // Seçili temayı bir kapsayıcıya CSS değişkeni olarak uygular
 export function temaUygula(kok, a = ayar()) {
