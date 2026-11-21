@@ -122,16 +122,18 @@ const CIZ = { civciv, samur, penguen, timsah, tavsan, kedi };
 
 // çamur lekeleri (kirli hâl)
 const camur = `<g class="pt-camur"><path d="M62 150 q6 -9 14 -3 q8 -2 6 7 q-6 7 -14 3 q-8 0 -6 -7z" fill="#7a5532"/><path d="M118 132 q7 -8 14 -2 q7 1 4 8 q-6 5 -13 1 q-7 -2 -5 -7z" fill="#7a5532"/><path d="M96 166 q5 -6 11 -1 q6 0 4 6 q-5 4 -11 1 q-6 -1 -4 -6z" fill="#8b6540"/><circle cx="78" cy="94" r="4.5" fill="#7a5532"/><circle cx="126" cy="112" r="3.4" fill="#8b6540"/></g>`;
+// köpük (temizliğin 1. adımından sonra): yüzen kabarcıklar
+const kopuk = `<g class="pt-kopuk" fill="#fff" stroke="#9fd3f2" stroke-width="1.6"><circle cx="70" cy="112" r="9"/><circle cx="132" cy="104" r="7"/><circle cx="100" cy="82" r="6"/><circle cx="82" cy="152" r="8"/><circle cx="124" cy="150" r="10"/><circle cx="100" cy="132" r="5"/><circle cx="60" cy="86" r="4"/><circle cx="142" cy="130" r="5"/></g>`;
 const zzz = `<g class="pt-zzz" fill="#7c8cc4" font-family="Georgia,serif" font-weight="700"><text x="138" y="62" font-size="20">z</text><text x="150" y="44" font-size="15">z</text><text x="159" y="30" font-size="11">z</text></g>`;
 
-export function petSvg({ tur, evre = 2, ruh = "mutlu", uyku = false, kirli = false, kimlik = "p" } = {}) {
+export function petSvg({ tur, evre = 2, ruh = "mutlu", uyku = false, kirli = false, kopuklu = false, kimlik = "p" } = {}) {
   const f = CIZ[tur]; if (!f) return yumurtaSvg(null, { kimlik });
   if (evre <= 0) return yumurtaSvg(tur, { kimlik });
   const p = S[Math.min(4, Math.max(1, evre))], k = kimlik + tur + evre;
   const govde = f(p, ruh, uyku || ruh === "cokac", k);
   return `<svg class="pet-svg ruh-${ruh}${uyku ? " uyku" : ""}" viewBox="0 0 200 200" role="img" aria-label="${A[tur] ? tur : "hayvan"}" xmlns="http://www.w3.org/2000/svg">
   <ellipse class="pt-golge" cx="100" cy="183" rx="${dk(46 * p.s + 8)}" ry="${dk(7 * p.s + 2)}" fill="rgba(0,0,0,.15)"/>
-  <g transform="translate(100 182) scale(${p.s}) translate(-100 -182)"><g class="pt-nef">${govde}${kirli ? camur : ""}</g></g>${uyku ? zzz : ""}</svg>`;
+  <g transform="translate(100 182) scale(${p.s}) translate(-100 -182)"><g class="pt-nef">${govde}${kirli ? camur : ""}${kopuklu ? kopuk : ""}</g></g>${uyku ? zzz : ""}</svg>`;
 }
 // yumurta: hayvana özel benekli desen; tur yoksa nötr
 export function yumurtaSvg(tur, { kimlik = "e", catlak = 0 } = {}) {
