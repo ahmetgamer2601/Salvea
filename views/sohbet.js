@@ -1,7 +1,7 @@
 // Görünüm: sohbet (app.js yönlendiricisi tarafından yüklenir)
 import { db } from "../firebase.js";
 import { resizeFit } from "../foto.js";
-import { gunAnahtar, seriHesapla, petDurum } from "../petmantik.js";
+import { gunAnahtar, seriHesapla, petDurum, camurAdimim } from "../petmantik.js";
 import { petEkraniAc } from "../pet-ekran.js";
 import { miniKafa } from "../pet-cizim.js";
 import { petBakim, gunlukOdul } from "../pet.js";
@@ -99,10 +99,10 @@ const closed = c => c.kapali === true || (c.bitisTs && T(c.bitisTs) < Date.now()
   function seriGoster(c) {
     const k = $("cseri"); if (!k) return; const sr = seriHesapla(c), oge = [], ac = e => { e.stopPropagation(); petAc(c.id); };
     if (c.tur === "sinif" && c.pet) {   // sınıf hayvanı: başlıkta küçük, dokununca tam pencere
-      const d = petDurum(c), b = el("span", "cpet"), bk = gunAnahtar(new Date()), l = ((c.pet.bes || {})[me.uid]) || [];
+      const d = petDurum(c), b = el("span", "cpet"), bk = gunAnahtar(new Date()), l = ((c.pet.bes || {})[me.uid]) || [], temizSirasi = d.mod === "yasiyor" && camurAdimim(d.camur, me.uid) && (d.camur.a === me.uid || d.camur.b === me.uid);
       b.setAttribute("role", "button"); b.tabIndex = 0; b.setAttribute("aria-label", "Sınıf hayvanı: " + (d.ad || "yumurta")); b.title = d.ad || "Sınıfın hayvanı";
       b.innerHTML = miniKafa(d.tur && d.tur.id, d.mod === "yasiyor" ? d.evre : 0, "hy", d.mod === "yildiz");
-      if (d.mod === "secim" || d.mod === "yildiz" || (d.mod === "yasiyor" && d.evre > 0 && !d.doymus && !d.hs && (!l.includes(bk + "m") || !l.includes(bk + "s")))) b.classList.add("dikkat");
+      if (d.mod === "secim" || d.mod === "yildiz" || temizSirasi || (d.mod === "yasiyor" && d.evre > 0 && !d.doymus && !d.hs && (!l.includes(bk + "m") || !l.includes(bk + "s")))) b.classList.add("dikkat");
       b.onclick = ac; b.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); ac(e); } }; oge.push(b);
     }
     if (sr.n >= 1) { const ch = seriChip(sr.n, sr.tehlike); if (c.tur === "sinif" && c.pet) ch.onclick = ac; oge.push(ch); }
@@ -170,6 +170,8 @@ const closed = c => c.kapali === true || (c.bitisTs && T(c.bitisTs) < Date.now()
     if (acikti) { tumM = new Map(); msgs = []; nodes = new Map(); lastDay = ""; $("msgs").replaceChildren(); kapatSohbet(); }
     renderList(); if (window.__salveaCikarildi) window.__salveaCikarildi(id, ad);
   }
+  // Hayvan penceresinden "eşine yaz": öğrenci-öğrenci özel sohbeti aç (kişi bilgisi zaten sohbet belgesinde, ek okuma yok)
+  ctx.on(window, "salvea-dmac", e => { const d = e.detail || {}, c = chats[d.chatId]; if (!c || !d.uid || d.uid === me.uid) return; startDm({ uid: d.uid, ad: (c.uyeAd && c.uyeAd[d.uid]) || "Arkadaşın", ogr: true }); });
   ctx.on(window, "salvea-cikarildi", e => { const id = e.detail && e.detail.id; if (id && (curId === id || chats[id])) cikarildi(id); });
   function kapatSohbet() {
     if (unsubMsg) unsubMsg(); if (unsubDur) unsubDur(); unsubMsg = unsubDur = null; clearInterval(hb); curId = null; kapatSheet();
