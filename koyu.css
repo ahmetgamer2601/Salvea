@@ -206,6 +206,12 @@ html[data-tema="koyu"] .pe-bakici small{color:#b1c2b8}
 html[data-tema="koyu"] .pe-a.daha{background:#4b5b52}
 html[data-tema="koyu"] .pe-sira{background:#3b3219;color:#e8dcc2}
 html[data-tema="koyu"] .pe-camur{background:#3f2f1b;color:#e7d4c0}
+html[data-tema="koyu"] .pe-camur.temiz{background:#22391e;color:#bfe3c7}
+html[data-tema="koyu"] .pe-adim{background:rgba(27,38,34,.55)}
+html[data-tema="koyu"] .pe-adim.sira{background:#1e2421}
+html[data-tema="koyu"] .pe-tik{color:#a3d9af}
+html[data-tema="koyu"] .pe-adim-btn{background:linear-gradient(#3b2557,#472f6d)}
+html[data-tema="koyu"] .pe-yaz{border:2px solid #554076;color:#ae98d7}
 html[data-tema="koyu"] .pe-btn.mama{background:linear-gradient(#68502d,#745332)}
 html[data-tema="koyu"] .pe-btn.su{background:linear-gradient(#2a4c61,#335a76)}
 html[data-tema="koyu"] .pe-btn.sunger{background:linear-gradient(#3b2557,#472f6d)}
@@ -214,6 +220,27 @@ html[data-tema="koyu"] .pe-canta{color:#b1c2b8}
 html[data-tema="koyu"] .pe-link{color:#bccbc2}
 html[data-tema="koyu"] .pe-kart small{color:#b1c2b8}
 html[data-tema="koyu"] .cpet{background:rgba(27,38,34,.55)}
+html[data-tema="koyu"] .pe-yardim{background:rgba(27,38,34,.9);color:#dde9e3}
+html[data-tema="koyu"] .pe-kat small{color:#b1c2b8}
+html[data-tema="koyu"] .pe-bar.oy i{background:linear-gradient(90deg,#3b2557,#472f6d)}
+html[data-tema="koyu"] .pe-oy-rozet{background:#472f6d}
+html[data-tema="koyu"] .pe-kart.oyum{border-color:#554076}
+html[data-tema="koyu"] .pe-senin{background:#231837;color:#b7a7d9}
+html[data-tema="koyu"] .pe-ekip-ac small{color:#b1c2b8}
+html[data-tema="koyu"] .pe-uye.ben{background:rgba(27,38,34,.55)}
+html[data-tema="koyu"] .pe-rz{background:#263028;color:#c6d1cb}
+html[data-tema="koyu"] .pe-rz.sira{background:#3f361b;color:#e8dcc2}
+html[data-tema="koyu"] .pe-rz.temiz{background:#231837;color:#b7a7d9}
+html[data-tema="koyu"] .pe-rz.temiz.yapti{background:#223b1e;color:#bfe3c7}
+html[data-tema="koyu"] .pe-rz.mama{background:#3f311b;color:#e3cdb4}
+html[data-tema="koyu"] .pe-rz.su{background:#192a3b;color:#a2c1dc}
+html[data-tema="koyu"] .pe-rz.hafta{color:#b1c2b8}
+html[data-tema="koyu"] .pe-rz.oy{background:#231837;color:#b7a7d9}
+html[data-tema="koyu"] .hr-balon{background:#1e2421;color:#dde8e2}
+html[data-tema="koyu"] .hr-balon::after{background:#1e2421}
+html[data-tema="koyu"] .hr-ad{color:#b6e3c6}
+html[data-tema="koyu"] .hr-atla{color:#b1c2b8}
+html[data-tema="koyu"] .hr-ileri{background:linear-gradient(#346432,#4fa862)}
 
 /* ---- elle eklenen düzeltmeler ---- */
 html[data-tema="koyu"] body{background-color:var(--cream);background-image:none}
@@ -230,6 +257,10 @@ html[data-tema="koyu"] .pe-balon,html[data-tema="koyu"] .pe-balon::after,html[da
 html[data-tema="koyu"] .pe-banner span{color:#5b6b61}
 html[data-tema="koyu"] .pe-ust-seri,html[data-tema="koyu"] .pe-ust-ad,html[data-tema="koyu"] .pe-kapat{background:rgba(255,255,255,.9);color:#25382e}
 html[data-tema="koyu"] .pe-ust-seri{color:#c25a1a}
+html[data-tema="koyu"] .hr-balon,html[data-tema="koyu"] .hr-balon::after{background:#fff}
+html[data-tema="koyu"] .hr-yazi{color:#27382f}
+html[data-tema="koyu"] .pe-senin{background:#2b2640;color:#cbbbf0}
+html[data-tema="koyu"] .pe-rz.oy{background:#2b2640;color:#cbbbf0}
 /* ---- tema geçiş animasyonu ---- */
 ::view-transition-old(root),::view-transition-new(root){animation:none;mix-blend-mode:normal}
 ::view-transition-old(root){z-index:1}::view-transition-new(root){z-index:2}
