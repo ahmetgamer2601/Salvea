@@ -4,7 +4,7 @@ import { resizeFit } from "../foto.js";
 import { SORULAR } from "../veri.js";
 import { ayarYukle, ayar, ayarKaydet, temaUygula, TEMALAR, BALONLAR, yerelOkundu, yerelOkunduYaz } from "../ayar.js";
 import { bildir } from "../push.js";
-import { collection, query, where, orderBy, limit, startAfter, getDocs, getDoc, doc, setDoc, updateDoc, writeBatch, serverTimestamp, Timestamp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+import { collection, query, where, orderBy, limit, startAfter, getDocs, getDoc, doc, setDoc, updateDoc, writeBatch, serverTimestamp, Timestamp, deleteField } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
 const P = {
   plus: '<path d="M12 5v14M5 12h14"/>', back: '<path d="M19 12H5M12 19l-7-7 7-7"/>', more: '<circle cx="12" cy="5" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="19" r="1.7"/>',
@@ -61,12 +61,14 @@ export default async function mount(ctx) {
   const dayLabel = ms => { const d = new Date(ms), t = new Date(), y = new Date(t); y.setDate(t.getDate() - 1); const k = x => x.toDateString(); return k(d) === k(t) ? "Bugün" : k(d) === k(y) ? "Dün" : d.toLocaleDateString("tr-TR", { day: "numeric", month: "long" }); };
   const mobil = () => matchMedia("(max-width:760px)").matches;
   let chats = {}, curId = null, msgs = [], nodes = new Map(), unsubMsg = null, unsubDur = null, hb = null, reply = null, pend = null, lastTyping = 0, firstLoad = true, lastDay = "", seen = {}, people = [], dur = {}, tumM = new Map(), ank = null, eskiBitti = false, eskiYukleniyor = false;
+const bilinen = new Set();   // bu oturumda listede görülen sohbetler (çıkarılmayı anlamak için)
 const LIM = 40;   // açılışta okunan mesaj sayısı (eskiden 120)
   let istenenSohbet = ctx.query.get("c"), istenenKisi = ctx.query.get("dm");
   const C = () => chats[curId];
   const other = c => c.uyeler.find(u => u !== me.uid);
   const title = c => c.tur === "dm" ? (c.uyeAd[other(c)] || "Sohbet") : c.ad;
-  const closed = c => c.kapali === true || (c.bitisTs && T(c.bitisTs) < Date.now());
+  const engelVar = c => !!(c && c.tur === "dm" && c.engel && Object.keys(c.engel).length);   // öğrenci-öğrenci sohbette taraflardan biri engellediyse
+const closed = c => c.kapali === true || (c.bitisTs && T(c.bitisTs) < Date.now()) || engelVar(c);
   const unread = c => c.son && c.son.uid !== me.uid && T(c.sonTs) > Math.max(T(c.okundu && c.okundu[me.uid]), yerelOkundu(me.uid, c.id));
   const gizliMs = c => T(c.gizli && c.gizli[me.uid]);   // "geçmişi temizle / sohbeti sil": yalnızca benim ekranımı etkiler
   const ref = () => doc(db, "sohbetler", curId);
@@ -106,6 +108,7 @@ const LIM = 40;   // açılışta okunan mesaj sayısı (eskiden 120)
   /* ---------- Sohbet listesi ---------- */
   const listeKaynak = snap => {
     chats = {}; snap.forEach(d => chats[d.id] = { id: d.id, ...d.data({ serverTimestamps: "estimate" }) });
+    snap.forEach(d => bilinen.add(d.id)); if (curId && bilinen.has(curId) && !chats[curId]) cikarildi(curId);   // sohbetten çıkarıldın
     renderList();
     if (curId && chats[curId]) { sub(); comp(); updTicks(); markRead(); }
     if (istenenSohbet && chats[istenenSohbet]) { const id = istenenSohbet; istenenSohbet = null; open(id); }
@@ -137,6 +140,7 @@ const LIM = 40;   // açılışta okunan mesaj sayısı (eskiden 120)
 
   /* ---------- Sohbeti aç / kapat ---------- */
   function open(id) {
+    if (!chats[id]) return;   // üyesi olmadığın sohbet açılmaz
     if (unsubMsg) unsubMsg(); if (unsubDur) unsubDur(); dur = {}; clearInterval(hb);
     curId = id; msgs = []; nodes = new Map(); lastDay = ""; firstLoad = true; tumM = new Map(); ank = null; eskiBitti = false; eskiYukleniyor = false; reply = null; pend = null; kapatSheet();
     $("msgs").replaceChildren(); updReply(); updPv(); $("newp").hidden = true;
@@ -148,9 +152,16 @@ const LIM = 40;   // açılışta okunan mesaj sayısı (eskiden 120)
     unsubMsg = ctx.snap(query(collection(db, "sohbetler", id, "mesajlar"), orderBy("ts", "desc"), limit(LIM)), snap => {
       snap.docs.forEach(d => tumM.set(d.id, mesajOlustur(d))); if (!ank) ank = snap.docs[snap.docs.length - 1] || null; if (!eskiBitti && !snap.metadata.fromCache && snap.docs.length < LIM) eskiBitti = true; msgs = msgListe(id);
       paint(); eskiDugme(); markRead();
-    }, e => toast("Mesajlar okunamadı: " + (e.code || e.message)));
+    }, e => { if (e.code === "permission-denied" && curId === id) return cikarildi(id); toast("Mesajlar okunamadı: " + (e.code || e.message)); });
     beat(); hb = ctx.every(beat, 60000);
   }
+  // Üyelikten çıkarılınca: ekranı hemen kapat, mesajları sil, uyarı göster (nav.js uyarıyı bir kez gösterir)
+  function cikarildi(id) {
+    const ad = chats[id] ? title(chats[id]) : "", acikti = curId === id; delete chats[id];
+    if (acikti) { tumM = new Map(); msgs = []; nodes = new Map(); lastDay = ""; $("msgs").replaceChildren(); kapatSohbet(); }
+    renderList(); if (window.__salveaCikarildi) window.__salveaCikarildi(id, ad);
+  }
+  ctx.on(window, "salvea-cikarildi", e => { const id = e.detail && e.detail.id; if (id && (curId === id || chats[id])) cikarildi(id); });
   function kapatSohbet() {
     if (unsubMsg) unsubMsg(); if (unsubDur) unsubDur(); unsubMsg = unsubDur = null; clearInterval(hb); curId = null; kapatSheet();
     $("app").classList.remove("inchat"); $("chat").hidden = true; $("emp").hidden = false; renderList();
@@ -161,7 +172,7 @@ const LIM = 40;   // açılışta okunan mesaj sayısı (eskiden 120)
   /* ---------- Üst bilgi: yazıyor / çevrimiçi ---------- */
   function sub() {
     const c = C(); if (!c) return; seriGoster(c); const now = Date.now(), others = c.uyeler.filter(u => u !== me.uid), s = $("cs"); s.className = "";
-    if (closed(c)) return void (s.textContent = "Bu sohbet kapandı");
+    if (closed(c)) return void (s.textContent = engelVar(c) ? "" : "Bu sohbet kapandı");
     const typing = others.filter(u => now - T(dur.yaziyor && dur.yaziyor[u]) < 8000);
     if (typing.length) { s.className = "typing"; s.replaceChildren(el("span", "", c.tur === "dm" ? "yazıyor" : typing.map(u => (c.uyeAd[u] || "").split(" ")[0]).join(", ") + " yazıyor")); const d = el("span", "dots"); d.append(el("i"), el("i"), el("i")); s.append(d); return; }
     const online = others.filter(u => now - T(dur.aktif && dur.aktif[u]) < 150000);
@@ -178,10 +189,18 @@ const LIM = 40;   // açılışta okunan mesaj sayısı (eskiden 120)
     acSheet(title(c), satir("palette", "Görünümü özelleştir", "Sohbet rengi, mesaj rengi, okundu bilgisi", gorunum),
       c.tur === "dm" ? satir("user", "Profili gör", null, () => profilGit(other(c))) : satir("users", "Üyeleri gör", c.uyeler.length + " kişi", () => uyeler(c)),
       satir("bell", "Bildirim ayarları", null, () => ctx.go("ayarlar")),
+      ...(c.tur === "dm" && c.ogrOgr && (!engelVar(c) || c.engel[me.uid]) ? [c.engel && c.engel[me.uid] ? satir("ban", "Engeli kaldır", "Tekrar mesajlaşabilirsiniz", () => engelle(c, false)) : satir("ban", "Engelle", "Birbirinize mesaj yazamazsınız. İstediğin zaman kaldırabilirsin.", () => onayla("Bu kişi engellensin mi?", "Siz birbirinize mesaj gönderemezsiniz. Engeli istediğin zaman kaldırabilirsin. Rahatsız edici bir mesaj varsa mesaja uzun basıp bildirmeyi de unutma.", () => engelle(c, true)), true)] : []),
       ...(c.tur === "sinif" ? [satir("cap", "Sınıf sayfası", "Öğretmenler ve ayarlar", () => ctx.go("sinif"))] : []),
       satir("trash", "Geçmişi temizle", "Yalnızca senin ekranından silinir", () => onayla("Geçmiş temizlensin mi?", "Bu sohbetteki eski mesajlar yalnızca senin ekranında gizlenir.", () => temizle(false))),
       ...(c.tur === "dm" ? [satir("trash", "Sohbeti sil", "Listeden kaldırır; yeni mesaj gelirse yeniden görünür", () => onayla("Sohbet silinsin mi?", "Sohbet yalnızca senin listenden kaldırılır. Karşındaki kişi etkilenmez.", () => temizle(true)), true)] : []));
   };
+  async function engelle(c, ac) {
+    try {
+      await updateDoc(doc(db, "sohbetler", c.id), { ["engel." + me.uid]: ac ? true : deleteField() });
+      const e0 = { ...(chats[c.id] && chats[c.id].engel || {}) }; if (ac) e0[me.uid] = true; else delete e0[me.uid];
+      chats[c.id] = { ...chats[c.id], engel: e0 }; comp(); sub(); toast(ac ? "Engellendi." : "Engel kaldırıldı.");
+    } catch (e) { toast("İşlem yapılamadı: " + (e.code || e.message)); }
+  }
   function onayla(baslik, metin, f) {
     const evet = el("button", "btn", "Evet"), iptal = el("button", "btn ghost", "Vazgeç"), k = el("div", "onay"); evet.type = iptal.type = "button"; evet.onclick = () => { kapatSheet(); f(); }; iptal.onclick = kapatSheet; k.append(evet, iptal); acSheet(baslik, el("p", "bilgi", metin), k);
   }
@@ -339,7 +358,7 @@ const LIM = 40;   // açılışta okunan mesaj sayısı (eskiden 120)
   }
 
   /* ---------- Yazma alanı ---------- */
-  function comp() { const c = C(), k = closed(c); $("comp").hidden = k; $("closed").hidden = !k; $("qb").hidden = !c || c.tur !== "takim" || k; if (k || $("qb").hidden) $("qpanel").hidden = true; if (k) { $("rbar").hidden = true; $("pv").hidden = true; } }
+  function comp() { const c = C(), k = closed(c); if (k) { const sp = $("closed").querySelector("span"); if (sp) sp.textContent = engelVar(c) ? (c.engel[me.uid] ? "Bu kişiyi engelledin. Mesaj gönderemezsin; menüden engeli kaldırabilirsin." : "Bu sohbette mesaj gönderemezsin.") : "Bu sohbet kapandı. Dönem sona erdiği için mesajlar yalnızca okunabilir."; } $("comp").hidden = k; $("closed").hidden = !k; $("qb").hidden = !c || c.tur !== "takim" || k; if (k || $("qb").hidden) $("qpanel").hidden = true; if (k) { $("rbar").hidden = true; $("pv").hidden = true; } }
   function updPv() { $("pv").hidden = !pend; if (pend) $("pvi").src = pend; sendDurum(); }
   $("pvx").onclick = () => { pend = null; updPv(); };
   $("pf").onchange = async () => {
@@ -383,21 +402,26 @@ const LIM = 40;   // açılışta okunan mesaj sayısı (eskiden 120)
     if (!me.okulId) return p.replaceChildren(el("small", "hint", "Okulun henüz yönetici tarafından eşleştirilmedi. Eşleştirilince sohbet başlatabilirsin."));
     p.replaceChildren(el("small", "hint", "Yükleniyor…"));
     try {
-      if (me.role === "teacher") people = (await getDocs(query(collection(db, "users"), where("role", "==", "student"), where("okulId", "==", me.okulId)))).docs.map(d => ({ uid: d.id, ad: d.data().ad + " " + d.data().soyad, alt: d.data().sinif + "-" + d.data().sube }));
+      const KC = window.__salveaKisiler, taze = !!(KC && KC.uid === me.uid && KC.rol === me.role && Date.now() - KC.t < 18e5);   // liste 30 dk bellekte tutulur (tekrar tekrar okumasın)
+      if (taze) people = KC.people.slice();
+      else if (me.role === "teacher") people = (await getDocs(query(collection(db, "users"), where("role", "==", "student"), where("okulId", "==", me.okulId)))).docs.map(d => ({ uid: d.id, ad: d.data().ad + " " + d.data().soyad, alt: d.data().sinif + "-" + d.data().sube }));
       else {
         const roller = {}; try { const sd = await getDoc(doc(db, "siniflar", me.okulId + "_" + me.sinif + "-" + me.sube)); if (sd.exists()) { (sd.data().sinifOgretmenleri || []).forEach(u => roller[u] = "Sınıf öğretmenin"); (sd.data().rehberOgretmenleri || []).forEach(u => roller[u] = (roller[u] ? roller[u] + " · " : "") + "Rehber öğretmenin"); } } catch (_) {}
         people = (await getDocs(query(collection(db, "ogretmenler"), where("okulId", "==", me.okulId)))).docs.filter(d => d.id !== me.uid).map(d => ({ uid: d.id, ad: d.data().ad, alt: roller[d.id] || d.data().brans || "Öğretmen", sira: roller[d.id] ? 0 : 1 }));
       }
+    if (!taze) window.__salveaKisiler = { uid: me.uid, rol: me.role, t: Date.now(), people: people.slice() };
     } catch (e) { return p.replaceChildren(el("small", "hint", "Liste okunamadı: " + (e.code || e.message))); }
-    const inp = el("input"); inp.type = "search"; inp.placeholder = me.role === "teacher" ? "Öğrenci ara" : "Öğretmen ara"; const box = el("div");
-    const draw = () => { const q = inp.value.trim().toLocaleLowerCase("tr"); const rows = people.filter(x => !q || x.ad.toLocaleLowerCase("tr").includes(q)).sort((a, b) => ((a.sira || 0) - (b.sira || 0)) || a.ad.localeCompare(b.ad, "tr"));
-      box.replaceChildren(...(rows.length ? rows.map(x => { const b = el("button", "pp"), d = el("div"); d.append(el("b", "", x.ad), el("small", "", x.alt)); b.type = "button"; b.append(avUser(x.uid, x.ad, "m"), d); b.onclick = () => startDm(x); return b; }) : [el("small", "hint", me.role === "teacher" ? "Öğrenci bulunamadı." : "Okulunda henüz profilini oluşturmuş rehber öğretmen yok.")])); };
+    // Öğrenci: öğretmenler + sınıf/takım arkadaşları (arkadaşlar zaten yüklü sohbet belgelerinden gelir: ek okuma yok)
+    const liste = me.role === "teacher" ? people : (() => { const ogrt = new Set(people.map(x => x.uid)), gor = new Set([me.uid]), ark = []; Object.values(chats).filter(c => c.tur === "sinif" || c.tur === "takim").forEach(c => c.uyeler.forEach(u => { if (!ogrt.has(u) && !gor.has(u)) { gor.add(u); ark.push({ uid: u, ad: (c.uyeAd && c.uyeAd[u]) || "Öğrenci", alt: c.tur === "sinif" ? "Sınıf arkadaşın" : "Takım arkadaşın", sira: 2, ogr: true }); } })); return people.concat(ark); })();
+    const inp = el("input"); inp.type = "search"; inp.placeholder = me.role === "teacher" ? "Öğrenci ara" : "Kişi ara"; const box = el("div");
+    const draw = () => { const q = inp.value.trim().toLocaleLowerCase("tr"); const rows = liste.filter(x => !q || x.ad.toLocaleLowerCase("tr").includes(q)).sort((a, b) => ((a.sira || 0) - (b.sira || 0)) || a.ad.localeCompare(b.ad, "tr"));
+      box.replaceChildren(...(rows.length ? rows.map(x => { const b = el("button", "pp"), d = el("div"); d.append(el("b", "", x.ad), el("small", "", x.alt)); b.type = "button"; b.append(avUser(x.uid, x.ad, "m"), d); b.onclick = () => startDm(x); return b; }) : [el("small", "hint", me.role === "teacher" ? "Öğrenci bulunamadı." : "Henüz yazabileceğin kimse yok.")])); };
     inp.oninput = draw; p.replaceChildren(inp, box); draw();
   };
   async function startDm(x) {
-    const t = me.role === "teacher", s = t ? x.uid : me.uid, tu = t ? me.uid : x.uid, id = "dm_" + s + "_" + tu;
+    const t = me.role === "teacher", [s, tu] = x.ogr ? [me.uid, x.uid].sort() : t ? [x.uid, me.uid] : [me.uid, x.uid], id = "dm_" + s + "_" + tu;
     if (!chats[id]) {
-      const data = { tur: "dm", okulId: me.okulId, ad: "", uyeler: [s, tu], uyeAd: { [s]: t ? x.ad : myName, [tu]: t ? myName : x.ad }, kapali: false, olusturma: serverTimestamp(), son: null, sonTs: serverTimestamp(), okundu: {}, yaziyor: {}, aktif: {} };
+      const data = { tur: "dm", okulId: me.okulId, ad: "", uyeler: [s, tu], uyeAd: { [me.uid]: myName, [x.uid]: x.ad }, ...(x.ogr ? { ogrOgr: true } : {}), kapali: false, olusturma: serverTimestamp(), son: null, sonTs: serverTimestamp(), okundu: {}, yaziyor: {}, aktif: {} };
       try { await setDoc(doc(db, "sohbetler", id), data); } catch (e) { return toast("Sohbet başlatılamadı: " + (e.code || e.message)); }
       chats[id] = { id, ...data, sonTs: null, olusturma: null };
     }
@@ -407,7 +431,7 @@ const LIM = 40;   // açılışta okunan mesaj sayısı (eskiden 120)
   async function kisiyeYaz(uid) {
     try {
       if (me.role === "teacher") { const d = await getDoc(doc(db, "users", uid)); if (d.exists() && d.data().role === "student") startDm({ uid, ad: d.data().ad + " " + d.data().soyad }); }
-      else { const d = await getDoc(doc(db, "ogretmenler", uid)); if (d.exists()) startDm({ uid, ad: d.data().ad }); else toast("Bu kişiye sohbetten yazamazsın."); }
+      else { const d = await getDoc(doc(db, "ogretmenler", uid)); if (d.exists()) startDm({ uid, ad: d.data().ad }); else if (uid !== me.uid) { const u = await getDoc(doc(db, "users", uid)); if (u.exists() && u.data().role === "student" && u.data().okulId === me.okulId) startDm({ uid, ad: u.data().ad + " " + u.data().soyad, ogr: true }); else toast("Bu kişiye sohbetten yazamazsın."); } }
     } catch (e) { toast("Sohbet başlatılamadı: " + (e.code || e.message)); }
   }
 
@@ -425,6 +449,6 @@ const LIM = 40;   // açılışta okunan mesaj sayısı (eskiden 120)
       } catch (_) {}
     }, 6000);
     ctx.leave(() => clearTimeout(tmo));
-  listeAl();   // nav.js'ten hazır liste varsa hemen çiz (değişkenlerin hepsi tanımlandıktan sonra)
   }
+  listeAl();   // nav.js'ten hazır liste varsa hemen çiz (tüm değişkenler tanımlandıktan sonra, her rol için)
 }
