@@ -177,6 +177,43 @@ html[data-tema="koyu"] .v-sohbet .bub.bot{background:linear-gradient(150deg,#3b3
 html[data-tema="koyu"] .v-sohbet .bot-nm{color:#e2d6b2}
 html[data-tema="koyu"] .v-sohbet .eski-btn{color:#8cc4a2}
 html[data-tema="koyu"] .v-sohbet .cb-bdg{background:#723331}
+html[data-tema="koyu"] .pe-yildizlar{background-image:radial-gradient(1.6px 1.6px at 12% 18%,#1e2421,transparent),radial-gradient(1.4px 1.4px at 28% 40%,#1e2421,transparent),radial-gradient(1.8px 1.8px at 45% 14%,#1e2421,transparent),radial-gradient(1.3px 1.3px at 62% 32%,#1e2421,transparent),radial-gradient(1.6px 1.6px at 78% 12%,#1e2421,transparent),radial-gradient(1.2px 1.2px at 90% 38%,#1e2421,transparent),radial-gradient(1.4px 1.4px at 20% 62%,#1e2421,transparent)}
+html[data-tema="koyu"] .pe-bulut{background:rgba(27,38,34,.88)}
+html[data-tema="koyu"] .pe-sahne.aksam .pe-bulut{background:rgba(59,44,25,0.85)}
+html[data-tema="koyu"] .pe-ust-seri{background:rgba(27,38,34,.9);color:#dbb69f}
+html[data-tema="koyu"] .pe-ust-seri .pe-i{color:#d8b297}
+html[data-tema="koyu"] .pe-ust-ad{background:rgba(27,38,34,.82);color:#dde9e3}
+html[data-tema="koyu"] .pe-kapat{background:rgba(27,38,34,.9);color:#dde9e3}
+html[data-tema="koyu"] .pe-oyun:focus-visible{outline:3px solid rgba(27,38,34,.9)}
+html[data-tema="koyu"] .pe-balon{background:#1e2421;color:#dde8e2}
+html[data-tema="koyu"] .pe-balon::after{background:#1e2421}
+html[data-tema="koyu"] .pe-yem{background:#6f5530}
+html[data-tema="koyu"] .pe-yem.su{background:#2f556f}
+html[data-tema="koyu"] .pe-banner{background:rgba(27,38,34,.96);color:#dde9e3}
+html[data-tema="koyu"] .pe-banner span{color:#bccbc2}
+html[data-tema="koyu"] .pe-alt{color:#bccbc2}
+html[data-tema="koyu"] .pe-bar i{background:linear-gradient(90deg,#346432,#4fa862)}
+html[data-tema="koyu"] .pe-bar.mama i{background:linear-gradient(90deg,#68502d,#745332)}
+html[data-tema="koyu"] .pe-bar.su i{background:linear-gradient(90deg,#2a4c61,#335a76)}
+html[data-tema="koyu"] .pe-gel small{color:#b1c2b8}
+html[data-tema="koyu"] .pe-seri-chip{background:#3a2a19;color:#dbb69f}
+html[data-tema="koyu"] .pe-seri-chip.b2{background:#3f2a1b;color:#dcb2a4}
+html[data-tema="koyu"] .pe-seri-chip.b3{background:#3e1b1b;color:#dda5a5}
+html[data-tema="koyu"] .pe-seri-chip .pe-i{color:#d8b297}
+html[data-tema="koyu"] .pe-donuk{color:#9bc0d9;background:#182c38}
+html[data-tema="koyu"] .pe-dondur{border:1.5px solid #2f4858;background:#162834;color:#9bc0d9}
+html[data-tema="koyu"] .pe-bakici small{color:#b1c2b8}
+html[data-tema="koyu"] .pe-a.daha{background:#4b5b52}
+html[data-tema="koyu"] .pe-sira{background:#3b3219;color:#e8dcc2}
+html[data-tema="koyu"] .pe-camur{background:#3f2f1b;color:#e7d4c0}
+html[data-tema="koyu"] .pe-btn.mama{background:linear-gradient(#68502d,#745332)}
+html[data-tema="koyu"] .pe-btn.su{background:linear-gradient(#2a4c61,#335a76)}
+html[data-tema="koyu"] .pe-btn.sunger{background:linear-gradient(#3b2557,#472f6d)}
+html[data-tema="koyu"] .pe-btn.tamam{background:linear-gradient(#346432,#4fa862)}
+html[data-tema="koyu"] .pe-canta{color:#b1c2b8}
+html[data-tema="koyu"] .pe-link{color:#bccbc2}
+html[data-tema="koyu"] .pe-kart small{color:#b1c2b8}
+html[data-tema="koyu"] .cpet{background:rgba(27,38,34,.55)}
 
 /* ---- elle eklenen düzeltmeler ---- */
 html[data-tema="koyu"] body{background-color:var(--cream);background-image:none}
@@ -185,6 +222,14 @@ html[data-tema="koyu"] body::after{background:radial-gradient(circle,rgba(125,15
 html[data-tema="koyu"] .tile{background:#2c5545}
 html[data-tema="koyu"] ::selection{background:#3b7a5d;color:#fff}
 html[data-tema="koyu"] img{filter:none}
+/* ---- sınıf hayvanı penceresi: sahne her temada aynı kalır ---- */
+html[data-tema="koyu"] .pe-bulut{background:rgba(255,255,255,.88)}
+html[data-tema="koyu"] .pe-sahne.aksam .pe-bulut{background:rgba(255,236,214,.85)}
+html[data-tema="koyu"] .pe-sahne.gece .pe-bulut{background:rgba(255,255,255,.88)}
+html[data-tema="koyu"] .pe-balon,html[data-tema="koyu"] .pe-balon::after,html[data-tema="koyu"] .pe-banner{background:rgba(255,255,255,.96);color:#27382f}
+html[data-tema="koyu"] .pe-banner span{color:#5b6b61}
+html[data-tema="koyu"] .pe-ust-seri,html[data-tema="koyu"] .pe-ust-ad,html[data-tema="koyu"] .pe-kapat{background:rgba(255,255,255,.9);color:#25382e}
+html[data-tema="koyu"] .pe-ust-seri{color:#c25a1a}
 /* ---- tema geçiş animasyonu ---- */
 ::view-transition-old(root),::view-transition-new(root){animation:none;mix-blend-mode:normal}
 ::view-transition-old(root){z-index:1}::view-transition-new(root){z-index:2}
