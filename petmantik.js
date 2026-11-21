@@ -31,6 +31,8 @@ export const ayAnahtar = k => k.slice(0, 7);
 
 /* ---------- üyeler ---------- */
 export const uyeListe = c => (c.uyeler || []).filter(u => u !== "salvea");
+// Öğrenciler: öğretmenler (sunucunun yazdığı `ogrt` listesi) çıkarılır. Liste henüz yoksa herkes sayılır.
+export const ogrenciListe = c => { const o = c.ogrt || []; return uyeListe(c).filter(u => !o.includes(u)); };
 // Bir günde mama ve su için gereken kişi sayısı: sınıfın yarısı (yukarı yuvarlanır)
 export const gerekSayisi = n => Math.max(1, Math.ceil((n || 0) / 2));
 
@@ -77,16 +79,61 @@ export function besSayim(c, gun) {
 }
 // Bugün sırası gelen kişiler (herkes besleyebilir; sıra, görev gibi öne çıkarılır). Gün ve sınıfa göre sabit, adil dağılım.
 export function siraListesi(c, gun) {
-  const u = uyeListe(c), gerek = gerekSayisi(u.length);
+  const u = ogrenciListe(c), gerek = gerekSayisi(u.length);
   return u.map(x => [hash(c.id + ":" + gun + ":" + x), x]).sort((a, b) => a[0] - b[0]).slice(0, gerek).map(x => x[1]);
 }
-// Çamur günü: üç günden birinde, hafta içi. Temizleme görevi bir kişiye düşer.
-export function camurDurumu(c, gun) {
-  const p = c.pet; if (!p || !p.tur || p.olum || haftaSonu(tarih(gun)) || hash(c.id + ":camur:" + gun) % 3 !== 0) return { var: false };
-  const u = uyeListe(c); if (!u.length) return { var: false };
-  const atanan = u.map(x => [hash(c.id + ":c:" + gun + ":" + x), x]).sort((a, b) => a[0] - b[0])[0][1];
-  const temiz = Object.values(p.cam || {}).some(l => (l || []).includes(gun));
-  return { var: true, atanan, temiz };
+// Okul günü sırası (Pazartesi 2020-01-06'dan beri; hafta sonları sayılmaz). Adil dönüşüm için kullanılır.
+export const okulGunNo = gun => { const fark = Math.round((tarih(gun) - tarih("2020-01-06")) / 864e5); return Math.floor(fark / 7) * 5 + Math.min(((fark % 7) + 7) % 7, 4); };
+// Her sınıfta o gün çamur ikilisi: iki öğrenci. Dönüşüm sırayla ilerler (N öğrenci => her ~N/2 günde herkese sıra gelir), her turda sıralama yeniden karışır.
+export function ikiliSec(c, gun) {
+  const u = ogrenciListe(c); if (!u.length) return [];
+  if (u.length === 1) return [u[0]];
+  const idx = okulGunNo(gun) * 2, tur = Math.floor(idx / u.length), sirali = u.map(x => [hash(c.id + ":ikili:" + tur + ":" + x), x]).sort((a, b) => a[0] - b[0]).map(x => x[1]);
+  return [sirali[idx % u.length], sirali[(idx + 1) % u.length]];
+}
+// Çamur günü: her okul günü (hayvan yumurtadan çıktıysa). Temizlik iki kişilik bir iş: 1. kişi köpükler (a), 2. kişi durular (b).
+// 2. adım ancak 1. adımdan sonra yapılır: ikili birbirine yazmak zorunda kalır. Öğleden sonra (>=14) sınıfın herhangi biri yardım edebilir.
+export function camurDurumu(c, gun, saat = 12) {
+  const p = c.pet; if (!p || !p.tur || p.olum || haftaSonu(tarih(gun)) || evreOf(p.gelisim) < 1) return { var: false };
+  const ik = ikiliSec(c, gun); if (!ik.length) return { var: false };
+  const cam = p.cam || {}, yapti = (u, ad) => ((cam[u] || []).includes(gun + ad)), kimlerA = Object.keys(cam).filter(u => yapti(u, "a")), kimlerB = Object.keys(cam).filter(u => yapti(u, "b"));
+  const adimA = kimlerA.length > 0, adimB = kimlerB.length > 0;
+  return { var: true, ikili: ik, a: ik[0], b: ik[1] || ik[0], tek: ik.length < 2, adimA, adimB, yapanA: kimlerA[0] || null, yapanB: kimlerB[0] || null, temiz: adimA && adimB, yardim: saat >= 14 };
+}
+// bir kişi şu an hangi adımı yapabilir? ("a" | "b" | null)
+export function camurAdimim(cm, uid) {
+  if (!cm.var || cm.temiz) return null;
+  const ben = (cm.a === uid ? "a" : "") + (cm.b === uid ? "b" : "");
+  if (!cm.adimA) return (ben.includes("a") || cm.yardim) ? "a" : null;
+  if (!cm.adimB) return (ben.includes("b") || cm.yardim) ? "b" : null;
+  return null;
+}
+/* ---------- ilk seçim: hepsi oy verir, "önce davranan" değil ---------- */
+// oy değeri "tur|isim". Üç gün boyunca herkes istediği kadar değiştirebilir (ücretsiz). Süre bitince en çok oy alan kazanır.
+export const oyAyir = s => { s = String(s || ""); const i = s.indexOf("|"); return i < 0 ? { tur: s, ad: "" } : { tur: s.slice(0, i), ad: s.slice(i + 1) }; };
+export const isimTemizle = a => String(a || "").replace(/[\u0000-\u001f<>]/g, "").replace(/\s+/g, " ").trim().slice(0, 20);
+export function oySayim(c) {
+  const oy = (c.pet && c.pet.oy) || {}, uyeler = new Set(uyeListe(c)), dag = {}, oylar = {};
+  Object.keys(oy).forEach(u => { if (!uyeler.has(u)) return; const { tur, ad } = oyAyir(oy[u]); if (!HAYVANLAR.some(h => h.id === tur)) return; dag[tur] = (dag[tur] || 0) + 1; (oylar[tur] = oylar[tur] || []).push({ uid: u, ad: isimTemizle(ad) }); });
+  return { dag, oylar, toplam: Object.values(dag).reduce((a, b) => a + b, 0), kisi: uyeler.size };
+}
+// Karar: en çok oy; beraberlikte kimin önce oy verdiğine değil sabit bir sıralamaya bakılır. İsim: kazanan hayvana verilen en çok önerilen isim.
+export function oyKarari(c) {
+  const s = oySayim(c), seriNo = (c.pet && c.pet.seriNo) || 1;
+  if (!s.toplam) return { ...otoSecim(c), oyVar: false, oy: 0 };
+  const enCok = Math.max(...Object.values(s.dag)), tur = Object.keys(s.dag).filter(t => s.dag[t] === enCok).sort((a, b) => hash(c.id + ":" + seriNo + ":" + a) - hash(c.id + ":" + seriNo + ":" + b))[0];
+  const isimler = {}; (s.oylar[tur] || []).forEach(o => { if (!o.ad) return; const k = o.ad.toLocaleLowerCase("tr"); (isimler[k] = isimler[k] || { ad: o.ad, n: 0 }).n++; });
+  const liste = Object.values(isimler).sort((a, b) => b.n - a.n || hash(c.id + a.ad) - hash(c.id + b.ad)), h = HAYVANLAR.find(x => x.id === tur);
+  return { tur, ad: liste.length ? liste[0].ad : h.isimler[hash(c.id + ":ad:" + seriNo) % h.isimler.length], oyVar: true, oy: enCok };
+}
+// Bakım ekibi: kim ne yaptı, kimin sırası. Sıralama katkıya göre DEĞİL (kimse "geride" gösterilmez): görevi olanlar önce, sonra ada göre.
+export function bakimEkibi(c, simdi = new Date()) {
+  const p = c.pet || {}, bes = p.bes || {}, bk = gunAnahtar(simdi), son7 = new Set(Array.from({ length: 7 }, (_, i) => gunAnahtar(new Date(simdi.getTime() - i * 864e5))));
+  const sira = new Set(siraListesi(c, bk)), cm = camurDurumu(c, bk, simdi.getHours()), oy = p.oy || {};
+  return ogrenciListe(c).map(u => {
+    const l = bes[u] || [], adim = cm.var ? (cm.a === u ? "a" : cm.b === u ? "b" : null) : null;
+    return { uid: u, ad: (c.uyeAd || {})[u] || "Öğrenci", mama: l.includes(bk + "m"), su: l.includes(bk + "s"), hafta: l.filter(x => son7.has(x.slice(0, 10))).length, sira: sira.has(u), temiz: adim, temizYapti: !!(adim === "a" ? cm.adimA : adim === "b" ? cm.adimB : false), oy: oy[u] ? oyAyir(oy[u]).tur : null };
+  }).sort((x, y) => ((y.sira || y.temiz) ? 1 : 0) - ((x.sira || x.temiz) ? 1 : 0) || x.ad.localeCompare(y.ad, "tr"));
 }
 // Gün kapanışı: geçmiş okul günlerini değerlendirir. Yeterince beslendiyse gelişir, değilse acıkır; 3 okul günü aç kalırsa yıldıza döner.
 // Hafta sonu bakım gerekmez (ne gelişir ne acıkır). Döndürülen `yama`, updateDoc için noktalı alan yollarıdır.
@@ -110,8 +157,8 @@ export function gunuKapat(pet, bugun, gerek, c, now = Date.now()) {
 // Arayüzün tek kaynağı: her şeyi hesaplanmış verir
 export function petDurum(c, simdi = new Date()) {
   const p = c && c.pet; if (!p) return { var: false };
-  const ms = simdi.getTime(), bk = gunAnahtar(simdi), u = uyeListe(c), gerek = gerekSayisi(u.length), bugun = besSayim(c, bk), h = HAYVANLAR.find(x => x.id === p.tur) || null;
-  const ev = evreOf(p.gelisim), sonraki = EVRELER[ev + 1] || null, cam = camurDurumu(c, bk);
+  const ms = simdi.getTime(), bk = gunAnahtar(simdi), u = uyeListe(c), gerek = gerekSayisi(ogrenciListe(c).length), bugun = besSayim(c, bk), h = HAYVANLAR.find(x => x.id === p.tur) || null;
+  const ev = evreOf(p.gelisim), sonraki = EVRELER[ev + 1] || null, cam = camurDurumu(c, bk, simdi.getHours());
   const hs = haftaSonu(simdi), doymus = bugun.mama >= gerek && bugun.su >= gerek;
   const mod = p.olum ? "yildiz" : !p.tur ? "secim" : "yasiyor";
   let ruh = "mutlu";
@@ -122,7 +169,7 @@ export function petDurum(c, simdi = new Date()) {
     sonrakiEvre: sonraki ? { ad: sonraki.ad, kalan: sonraki.min - (p.gelisim || 0) } : null,
     ac: p.ac || 0, olmeyeKalan: Math.max(0, SABIT.ACLIK_OLUM - (p.ac || 0)),
     secimKalanMs: !p.tur && !p.olum ? Math.max(0, (p.secimSon || 0) - ms) : 0, secimBitti: !p.tur && !p.olum && ms > (p.secimSon || 0),
-    degistirilebilir: !!p.tur && !p.olum && !p.degisti,
+    degistirilebilir: !!p.tur && !p.olum && !p.degisti, oyDurumu: mod === "secim" ? oySayim(c) : null,
     gerek, bugun, doymus, hs, sira: siraListesi(c, bk), camur: cam, dondur: dondurHakki(c, simdi),
   };
 }
