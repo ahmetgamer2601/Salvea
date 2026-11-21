@@ -1,7 +1,9 @@
 // Görünüm: sohbet (app.js yönlendiricisi tarafından yüklenir)
 import { db } from "../firebase.js";
 import { resizeFit } from "../foto.js";
-import { gunAnahtar, seriHesapla } from "../petmantik.js";
+import { gunAnahtar, seriHesapla, petDurum } from "../petmantik.js";
+import { petEkraniAc } from "../pet-ekran.js";
+import { miniKafa } from "../pet-cizim.js";
 import { petBakim, gunlukOdul } from "../pet.js";
 import { SORULAR } from "../veri.js";
 import { ayarYukle, ayar, ayarKaydet, temaUygula, TEMALAR, BALONLAR, yerelOkundu, yerelOkunduYaz } from "../ayar.js";
@@ -93,7 +95,19 @@ const closed = c => c.kapali === true || (c.bitisTs && T(c.bitisTs) < Date.now()
   // gunAnahtar ve seriHesapla artık petmantik.js içinde (dondurma desteğiyle, test edilebilir)
   function gunlerYama(c) { const bk = gunAnahtar(new Date()), onceki = (c.gunler || {})[me.uid] || []; return onceki.includes(bk) ? {} : { ["gunler." + me.uid]: [...onceki.slice(-34), bk] }; }
   function seriChip(n, tehlike) { const s = el("span", "seri-chip" + (tehlike ? " tehlike" : "") + (n >= 30 ? " b3" : n >= 7 ? " b2" : "")); s.append(I("flame"), String(n)); s.title = n + " günlük seri" + (tehlike ? ". Bugün yazarsan sürer!" : ""); return s; }
-  function seriGoster(c) { const k = $("cseri"); if (!k) return; const sr = seriHesapla(c); k.replaceChildren(...(sr.n >= 1 ? [seriChip(sr.n, sr.tehlike)] : [])); }
+  function petAc(id) { petEkraniAc({ chatId: id, me: { uid: me.uid, ad: String(me.takmaAd || me.ad || "").split(" ")[0] }, getChat: () => chats[id] }); }
+  function seriGoster(c) {
+    const k = $("cseri"); if (!k) return; const sr = seriHesapla(c), oge = [], ac = e => { e.stopPropagation(); petAc(c.id); };
+    if (c.tur === "sinif" && c.pet) {   // sınıf hayvanı: başlıkta küçük, dokununca tam pencere
+      const d = petDurum(c), b = el("span", "cpet"), bk = gunAnahtar(new Date()), l = ((c.pet.bes || {})[me.uid]) || [];
+      b.setAttribute("role", "button"); b.tabIndex = 0; b.setAttribute("aria-label", "Sınıf hayvanı: " + (d.ad || "yumurta")); b.title = d.ad || "Sınıfın hayvanı";
+      b.innerHTML = miniKafa(d.tur && d.tur.id, d.mod === "yasiyor" ? d.evre : 0, "hy", d.mod === "yildiz");
+      if (d.mod === "secim" || d.mod === "yildiz" || (d.mod === "yasiyor" && d.evre > 0 && !d.doymus && !d.hs && (!l.includes(bk + "m") || !l.includes(bk + "s")))) b.classList.add("dikkat");
+      b.onclick = ac; b.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); ac(e); } }; oge.push(b);
+    }
+    if (sr.n >= 1) { const ch = seriChip(sr.n, sr.tehlike); if (c.tur === "sinif" && c.pet) ch.onclick = ac; oge.push(ch); }
+    k.replaceChildren(...oge);
+  }
   function kutlaKontrol(c) {
     if (!c) return; const sr = seriHesapla(c); if (![3, 7, 14, 30, 50, 100].includes(sr.n)) return; const ak = "salvea_seri_" + me.uid + "_" + c.id + "_" + sr.n; try { if (localStorage.getItem(ak)) return; localStorage.setItem(ak, "1"); } catch (_) {}
     const k = el("div", "seri-kutla"), a = el("div", "seri-alev"); a.innerHTML = ic("flame"); k.append(a, el("b", "", sr.n + " günlük seri!"), el("span", "", c.tur === "dm" ? "Her gün yazışmaya devam edin." : "Bu sohbet her gün canlı.")); root.append(k); setTimeout(() => k.classList.add("kapan"), 3000); setTimeout(() => k.remove(), 3500);
