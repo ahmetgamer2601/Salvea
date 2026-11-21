@@ -1,6 +1,7 @@
 // İlk giriş rehberi: yetkiye göre (öğrenci / öğretmen) ayrı, animasyonlu. Her hesapta bir kez; sonra Menü > Rehber ya da Ayarlar'dan.
 import { ayar, ayarKaydet } from "./ayar.js";
 import { durum as pushDurum, ac as pushAc } from "./push.js";
+import { maskotSec, maskotSvg } from "./pet-rehber.js";
 export const REHBER_SURUM = 1;
 const S = g => '<svg viewBox="0 0 240 180" class="rh-svg" aria-hidden="true" focusable="false">' + g + "</svg>";
 const R = {
@@ -24,6 +25,7 @@ const OGRENCI = [
   { r: "gorev", b: "Görevlerle birlikte ilerleyin", m: ["Takımın küçük ve eğlenceli görevler alır: ortak bir çizim, nesne avı, mini röportaj…"], l: ["Her görevde herkesin bir rolü var", "Fotoğraflı kanıt gönderirsin (yüzler görünmesin)", "Öğretmenin onaylayınca takımın puan kazanır", "Puanlar okulun ortak hedefine eklenir. Kimse kimseyle yarışmaz"] },
   { r: "kesfet", b: "Keşfet: her gün yeni kartlar", m: ["Bilgiler, mini quizler, “bu mu şu mu?” soruları, günün kelimesi ve küçük cesaret görevleri seni bekliyor."], l: ["Kaydır, oyna, öğren", "Ortak ilgi alanların olan arkadaşlarla burada tanışırsın", "Cesaret görevini her gün yaparsan serin büyür"] },
   { r: "sohbet", b: "Sohbet ve seriler", m: ["Takımınla, sınıfınla ve rehber öğretmeninle yazışabilirsin."], l: ["Her gün yazışmaya devam edersen sohbet serin büyür (hafta sonu seriyi bozmaz)", "Mesaja basılı tut: yanıtla, kopyala, sil ya da öğretmene bildir", "Mesajı sağa kaydırınca yanıtlarsın", "Sınıf sohbetine ara sıra eğlenceli sorular ve etkinlikler gelir"] },
+  { r: "hayvan", b: "Sınıfın hayvanı seni bekliyor", m: mk => ["Merhaba! Ben " + mk.ad + ", bir " + mk.tanim + "yim. Sana kendimi ve sınıf hayvanlarını tanıtmaya geldim.", "Sınıf sohbetinizde ortak bir hayvan olacak. Hepiniz oy verip birlikte seçeceksiniz; yumurtadan çıkıp sizinle birlikte büyüyecek."], l: ["Her gün sınıfın yarısı mama ve su verirse hayvan mutlu olur", "Mama ve suyu görev yaparak ve sohbet ederek kazanırsın", "Hayvan çamura girerse iki kişi birlikte temizler: biri köpükler, diğeri durular", "Sohbet serin büyüdükçe o da büyür; üç okul günü bakılmazsa yıldıza dönüşür"] },
   { r: "etkinlik", b: "Etkinlikler ve duyurular", m: ["Öğretmenin canlı quiz, anket ve teşekkür gecesi gibi etkinlikler düzenleyebilir. Sınıflar arası ya da takımlı oynanır."], l: ["Duyurular menüsünde öğretmenlerinin mesajlarını okursun", "Sınıfım sayfasında sınıf öğretmenini ve rehber öğretmenini görürsün", "Yeni bir şey olunca bildirim gelir"] },
   { r: "guven", b: "Güvendesin ve kontrol sende", m: ["Salvea senin için güvenli bir yer olmalı."], l: ["Profilini ve fotoğrafını kimin göreceğine sen karar verirsin", "Rahatsız edici bir mesajı “Öğretmene bildir” ile iletebilirsin", "Kendini kötü hissettiğinde Ana sayfadaki “Rehber öğretmenimle konuşmak istiyorum” düğmesi var", "Acil bir durumda 112'yi ara"] },
   { r: "bildirim", ek: 1, b: "Hiçbir şeyi kaçırma", m: ["Yeni mesaj, görev ve duyuruları telefonuna bildirim olarak alabilirsin. İstediğin türleri Ayarlar'dan kapatabilirsin."] },
@@ -35,6 +37,7 @@ const OGRETMEN = [
   { r: "takim", b: "Dengeli takımlar kur", m: ["Takımlar sekmesinde dönem tarihlerini ve takım büyüklüğünü seçersiniz."], l: ["Sistem, daha önce aynı takımda olanları ayırır ve ortak ilgi alanlarını eşleştirir", "Önizleyip değiştirir, sonra yayınlarsınız", "Yayınlayınca takım sohbetleri otomatik açılır"] },
   { r: "gorev", b: "Görev ata ve onayla", m: ["Hazır görevlerden seçebilir ya da kendi görevinizi yazabilirsiniz."], l: ["Takımlar fotoğraflı kanıt gönderir; siz onaylar ya da tekrar istersiniz", "Kanıt fotoğrafları onaydan sonra otomatik silinir", "Puanlar okulun ortak hedefine eklenir"] },
   { r: "sinif", b: "Sınıfım: sınıf sohbeti ve onaylar", m: ["Yönetici sizi bir sınıfın sınıf öğretmeni ya da rehber öğretmeni olarak atadığında Sınıfım sayfası açılır."], l: ["Öğrencileri sınıfa onaylarsınız; onaylananlar sınıf sohbetine katılır", "Sınıf sohbetine ara sıra otomatik eğlenceli sorular gelir; açıp kapatabilir, sıklığını seçebilir, anında soru gönderebilirsiniz", "Öğrencilerin bildirdiği mesajlar burada toplanır"] },
+  { r: "hayvan", b: "Sınıf hayvanı", m: mk => ["Merhaba, ben " + mk.ad + ". Sınıf sohbetlerinde öğrencilerinizle birlikte büyüyecek bir sınıf hayvanı var."], l: ["Sınıf hayvanını öğrenciler birlikte oylayarak seçer", "Mama, su ve çamur temizliği öğrencileri her gün birlikte iş yapmaya ve konuşmaya yönlendirir", "Çamur temizliği iki öğrencilik bir iştir: biri köpükler, diğeri durular"] },
   { r: "duyuru", b: "Duyuru gönder", m: ["Menü → Duyurular bölümünden öğrencilerinize süslü duyurular yazabilirsiniz."], l: ["Stil ve emoji seçin, hedefi belirleyin (tüm okul, sınıf, takım ya da seçtiğiniz öğrenciler)", "Gönderimden sonra kaç kişiye bildirim gittiğini ve kimde kapalı olduğunu görürsünüz", "Bildirimi kapalı olanlar duyuruyu uygulamayı açınca görür"] },
   { r: "randevu", b: "Randevu ve yardım istekleri", m: ["Öğrenciler sizinle randevu alabilir ya da “konuşmak istiyorum” diyebilir."], l: ["Randevu sayfasında müsait saatlerinizi açarsınız", "Yardım istekleri Panel'de görünür ve size bildirim gelir", "Öğrencilerle birebir sohbet edebilirsiniz"] },
   { r: "guven", b: "Gizlilik ve sorumluluk", m: ["Salvea küçük yaştaki öğrencilerin kişisel verilerini içerir."], l: ["Etiketler, check-in ve yardım istekleri yalnızca öğretmenlerce görülür; paylaşmayın", "Grup ve sınıf sohbetlerinde uygunsuz mesajı silebilirsiniz", "Fotoğraflar belirli süre sonra silinir (KVKK)"] },
@@ -43,8 +46,9 @@ const OGRETMEN = [
 ];
 const el = (t, c, x) => { const e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; };
 let acik = null;
+const maskotSahne = mk => '<div class="rh-maskot"><div class="rh-mk-zip">' + maskotSvg(mk, 3, "rh") + "</div></div>";
 export function rehberGoster(me) {
-  if (acik) return; const sy = me.role === "teacher" ? OGRETMEN : OGRENCI; let i = 0, yon = 1;
+  if (acik) return; const maskot = maskotSec(), sy = me.role === "teacher" ? OGRETMEN : OGRENCI; let i = 0, yon = 1;
   const kok = el("div", "rh"), ust = el("div", "rh-ust"), nk = el("div", "rh-noktalar"), atla = el("button", "rh-atla", "Atla"), sahne = el("div", "rh-sahne"), alt = el("div", "rh-alt"), geri = el("button", "btn ghost rh-geri", "Geri"), ileri = el("button", "btn rh-ileri", "İleri");
   kok.setAttribute("role", "dialog"); kok.setAttribute("aria-modal", "true"); kok.setAttribute("aria-label", "Salvea rehberi"); atla.type = geri.type = ileri.type = "button"; ust.append(nk, atla); alt.append(geri, ileri); kok.append(ust, sahne, alt); document.body.append(kok); document.body.classList.add("rh-acik"); acik = kok;
   const bitir = async () => { kok.classList.add("kapan"); document.body.classList.remove("rh-acik"); acik = null; document.removeEventListener("keydown", tus); try { localStorage.setItem("salvea_rehber_" + me.uid, String(REHBER_SURUM)); } catch (_) {} try { await ayarKaydet(me.uid, { rehber: REHBER_SURUM }); } catch (_) {} setTimeout(() => kok.remove(), 350); };
@@ -56,7 +60,7 @@ export function rehberGoster(me) {
   }
   function ciz() {
     const p = sy[i], s = el("div", "rh-sayfa " + (yon > 0 ? "ileri" : "geri")), sn = el("div", "rh-sanat"); nk.replaceChildren(...sy.map((_, k) => el("i", k === i ? "on" : k < i ? "gec" : "")));
-    sn.innerHTML = R[p.r]; s.append(sn, el("h2", "", p.b)); (p.m || []).forEach(t => s.append(el("p", "rh-metin", t)));
+    sn.innerHTML = R[p.r] || maskotSahne(maskot); s.append(sn, el("h2", "", p.b)); (typeof p.m === "function" ? p.m(maskot) : p.m || []).forEach(t => s.append(el("p", "rh-metin", t)));
     if (p.l) { const ul = el("ul", "rh-liste"); p.l.forEach((t, k) => { const li = el("li", "", t); li.style.animationDelay = 0.25 + k * 0.12 + "s"; ul.append(li); }); s.append(ul); }
     if (p.ek) { const k = el("div", "rh-ek"); s.append(k); bildirimEk(k); }
     sahne.replaceChildren(s); geri.style.visibility = i ? "visible" : "hidden"; ileri.textContent = i === sy.length - 1 ? "Başlayalım" : "İleri"; atla.hidden = i === sy.length - 1;
