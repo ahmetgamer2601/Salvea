@@ -27,13 +27,15 @@ const SOZ = {
   okşa: ["Hihi, gıdıklanıyorum!", "Bir daha!", "Çok güzel hissettiriyor.", "Mırr… yani, cik cik… yani, hihi."],
   yem: ["Nam nam nam!", "Çok güzel! Teşekkürler {ad}!", "Tam da ihtiyacım olan buydu."],
   su: ["Glu glu… ah, ne iyi geldi!", "Serinledim! Teşekkürler {ad}."],
+  temizSira: ["{ad}, bugün temizlik ikilisindesin! {es} ile konuşup birlikte halledin.", "Köpük köpük! {es} ile iş bölümü yapın, olur mu?", "Bugün beni sen ve {es} temizleyeceksiniz. Önce bir selam verin birbirinize."],
+  kopuk: ["Köpüklüyüm! Şimdi durulanma zamanı.", "Gıdıklanıyorum… köpük köpük!"],
   temiz: ["Ahh, tertemiz oldum! Sağ ol {ad}.", "Pırıl pırıl! Çok teşekkürler."],
 };
 export const SOZ_KATEGORILERI = Object.keys(SOZ);
 
 // d: petDurum çıktısı; x: { ad, saat, bakici, seri, sinif }
 export function sozSec(d, x = {}, r = Math.random) {
-  const v = { ad: x.ad || "", n: x.seri || 0, bakici: x.bakici || "", sinif: x.sinif || "" }, saat = x.saat == null ? 12 : x.saat;
+  const v = { ad: x.ad || "", n: x.seri || 0, bakici: x.bakici || "", sinif: x.sinif || "", es: x.es || "arkadaşın" }, saat = x.saat == null ? 12 : x.saat;
   const al = k => doldur(sec(SOZ[k], r), v);
   if (!d || !d.var) return "";
   if (d.mod === "yildiz") return al("yildiz");
@@ -43,6 +45,7 @@ export function sozSec(d, x = {}, r = Math.random) {
   if (d.ruh === "cokac") k.push("cokac", "cokac", "cokac");
   else if (d.ruh === "ac") k.push("ac", "ac", d.bugun.mama < d.gerek && d.bugun.su >= d.gerek ? "mamaEksik" : d.bugun.su < d.gerek && d.bugun.mama >= d.gerek ? "suEksik" : "ac");
   if (d.ruh === "kirli" || (d.camur && d.camur.var && !d.camur.temiz)) k.push("kirli", "kirli");
+  if (x.temizSirasi) k.push("temizSira", "temizSira", "temizSira");
   if (x.siraBende) k.push("sira", "sira");
   if (d.doymus) k.push("doymus", "doymus");
   if (x.bakici) k.push("dun");
@@ -60,4 +63,4 @@ export function dokunTepkisi(d, dokunma, x = {}, r = Math.random) {
   if (cekingen) return { tur: "cekingen", soz: doldur(sec(SOZ.cekingen, r), v) };
   return { tur: "oksa", soz: doldur(sec(dokunma >= 4 ? SOZ.okşa : SOZ.okşa.concat(SOZ.guven), r), v) };
 }
-export const eylemSozu = (tur, x = {}, r = Math.random) => doldur(sec(SOZ[tur] || SOZ.genel, r), { ad: x.ad || "" });
+export const eylemSozu = (tur, x = {}, r = Math.random) => doldur(sec(SOZ[tur] || SOZ.genel, r), { ad: x.ad || "", es: x.es || "arkadaşın" });
