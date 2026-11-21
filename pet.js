@@ -3,7 +3,7 @@
 import { db } from "./firebase.js";
 import { doc, runTransaction, updateDoc } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 import { env, envYama } from "./ayar.js";
-import { SABIT, HAYVANLAR, gunAnahtar, gunEkle, gerekSayisi, uyeListe, yeniPet, gunuKapat, otoSecim, dondurulabilir } from "./petmantik.js";
+import { SABIT, HAYVANLAR, gunAnahtar, gunEkle, gerekSayisi, ogrenciListe, isimTemizle, oyKarari, yeniPet, gunuKapat, otoSecim, dondurulabilir, camurDurumu, camurAdimim } from "./petmantik.js";
 
 const ref = id => doc(db, "sohbetler", id);
 const bugun = () => gunAnahtar(new Date());
@@ -21,13 +21,14 @@ export async function petBakim(c) {
   if (!c || c.tur !== "sinif" || c.kapali) return null;
   const p = c.pet, now = Date.now();
   if (!p) return petKur(c.id);
-  if (!p.tur && !p.olum && p.secimSon && now > p.secimSon) return petOtoSec(c.id);
+  if (!p.tur && !p.olum && p.secimSon && now > p.secimSon + 3000) return petOtoSec(c.id);
   if (p.tur && !p.olum && (p.sonGun || "") < gunEkle(bugun(), -1)) return gunuKapatIsle(c.id);
   return null;
 }
 export const petKur = id => islem(id, c => c.tur !== "sinif" || c.pet ? null : { pet: yeniPet(Date.now(), 1) });
-export const petOtoSec = id => islem(id, c => { const p = c.pet; if (!p || p.tur || p.olum || Date.now() <= (p.secimSon || 0)) return null; const s = otoSecim(c); return { "pet.tur": s.tur, "pet.ad": s.ad, "pet.secildi": Date.now(), "pet.sonGun": bugun() }; });
-export const gunuKapatIsle = id => islem(id, c => { const p = c.pet; if (!p) return null; const r = gunuKapat(p, bugun(), gerekSayisi(uyeListe(c).length), c, Date.now()); return r ? r.yama : null; });
+// Süre dolunca: en çok oy alan hayvan ve isim (oy yoksa sabit rastgele). Kuralda da süre kontrol edilir.
+export const petOtoSec = id => islem(id, c => { const p = c.pet; if (!p || p.tur || p.olum || Date.now() <= (p.secimSon || 0) + 3000) return null; const k = oyKarari(c); return { "pet.tur": k.tur, "pet.ad": isimTemizle(k.ad), "pet.secildi": Date.now(), "pet.sonGun": bugun() }; });
+export const gunuKapatIsle = id => islem(id, c => { const p = c.pet; if (!p) return null; const r = gunuKapat(p, bugun(), gerekSayisi(ogrenciListe(c).length), c, Date.now()); return r ? r.yama : null; });
 // Hayvan yıldıza dönünce sınıf yeni bir yumurta alır (yeni seri, yeni hayvan)
 export const yeniYumurta = id => islem(id, c => c.pet && c.pet.olum ? { pet: yeniPet(Date.now(), (c.pet.seriNo || 1) + 1) } : null);
 
@@ -39,8 +40,7 @@ export async function petSec(id, tur, ad, uid, degistir = false) {
   const s = await islem(id, c => {
     const p = c.pet; if (!p || p.olum) throw new Error("Şu an hayvan yok.");
     if (degistir) { if (!p.tur) throw new Error("Önce hayvanı seç."); if (p.degisti) throw new Error("Hayvan zaten bir kez değiştirildi."); return { "pet.tur": tur, "pet.ad": ad, "pet.degisti": true }; }
-    if (p.tur) throw new Error("Sınıfın hayvanını zaten seçti.");
-    return { "pet.tur": tur, "pet.ad": ad, "pet.secildi": Date.now(), "pet.sonGun": bugun() };
+    throw new Error("İlk seçim oylamayla yapılır. Süre dolunca en çok oy alan hayvan gelir.");
   });
   if (degistir && s) await envYama(uid, { mama: -SABIT.DEGISTIR_MAMA });
   return s;
@@ -58,11 +58,15 @@ export async function besle(c, tur, uid) {   // tur: "m" (mama) | "s" (su)
   if (!yazildi) return { zatenVar: true };
   await envYama(uid, { [k]: -1 }); return { ok: true };
 }
-export async function temizle(c, uid) {
-  const cm = c.pet && c.pet.tur && !c.pet.olum; if (!cm) throw new Error("Temizlenecek bir şey yok.");
-  const yazildi = await kendiListeye(c, "cam", bugun(), uid);
-  if (!yazildi) return { zatenVar: true };
-  await envYama(uid, { mama: SABIT.TEMIZLE_ODUL_MAMA }); return { ok: true };
+// Çamur temizliği iki adımdır: "a" (köpükle) sonra "b" (durula). Adım, sıra gelen ikiliye aittir; öğleden sonra herkes yardım edebilir.
+export async function temizle(c, uid, saat = new Date().getHours()) {
+  const cm = camurDurumu(c, bugun(), saat); if (!cm.var) throw new Error("Bugün temizlenecek bir şey yok.");
+  if (cm.temiz) throw new Error("Hayvan zaten tertemiz!");
+  const adim = camurAdimim(cm, uid), ikilide = cm.a === uid || cm.b === uid;
+  if (!adim) throw new Error(ikilide && !cm.adimA ? "Önce köpüklenmesi gerekiyor. Eşin başlayınca durulayabilirsin." : !cm.adimA ? "Köpükleme sırası ikilide. Öğleden sonra herkes yardım edebilir." : "Durulama sırası ikilide. Öğleden sonra herkes yardım edebilir.");
+  const yazildi = await kendiListeye(c, "cam", bugun() + adim, uid);
+  if (!yazildi) return { zatenVar: true, adim };
+  await envYama(uid, { mama: SABIT.TEMIZLE_ODUL_MAMA }); return { ok: true, adim, bitti: adim === "b" };
 }
 export async function seriDondur(c, gun) {
   const k = dondurulabilir(c, gun); if (!k.ok) throw new Error(k.neden);
@@ -72,4 +76,13 @@ export async function seriDondur(c, gun) {
 export async function gunlukOdul(uid) {
   const bk = bugun(); if (env().odul === bk) return false;
   await envYama(uid, { su: SABIT.GUNLUK_ODUL_SU }, { odul: bk }); return true;
+}
+
+// İlk 3 gün: herkes oy verir, istediği kadar değiştirir (ücretsiz). Yalnızca kendi anahtarına yazar. Süre bitince en çok oy alan seçilir.
+export async function oyVer(c, tur, ad, uid) {
+  if (!HAYVANLAR.some(h => h.id === tur)) throw new Error("Bilinmeyen hayvan.");
+  const p = c.pet; if (!p || p.tur || p.olum) throw new Error("Oylama sona erdi.");
+  if (Date.now() > (p.secimSon || 0)) throw new Error("Oylama süresi doldu.");
+  const deger = tur + "|" + isimTemizle(ad); if (((p.oy || {})[uid]) === deger) return { ayni: true };
+  await updateDoc(ref(c.id), { ["pet.oy." + uid]: deger }); return { ok: true };
 }
