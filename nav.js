@@ -110,6 +110,7 @@ export function setActive(key) {
 
 // ---- Sohbet: okunmamış mesaj rozeti ve kısa bildirim
 function watchChat(me) {
+  window.__salveaSohbetler = null;
   const seen = {}; let first = true, son = [];
   const unread = (c, id) => c.son && c.son.uid !== me.uid && T(c.sonTs) > Math.max(T(c.okundu && c.okundu[me.uid]), yerelOkundu(me.uid, id));
   const est = d => d.data({ serverTimestamps: "estimate" });
@@ -117,16 +118,17 @@ function watchChat(me) {
   window.addEventListener("salvea-okundu", say);   // okundu bilgisi kapalıyken rozet yine de güncellensin
   onSnapshot(query(collection(db, "sohbetler"), where("uyeler", "array-contains", me.uid)), snap => {
     son = []; snap.forEach(d => { const c = est(d); son.push([d.id, c]); if (first && c.son) seen[d.id] = c.son.id; });
+    window.__salveaSohbetler = snap; window.dispatchEvent(new Event("salvea-sohbetler"));   // sohbet ekranı aynı sonucu kullanır
     say();
     if (!first) snap.docChanges().forEach(ch => { if (ch.type === "removed") return; const c = est(ch.doc); if (unread(c, ch.doc.id) && c.son.id !== seen[ch.doc.id]) { seen[ch.doc.id] = c.son.id; if (window.__route !== "sohbet") toast("💬 " + (c.son.ad || "Yeni mesaj"), c.son.foto ? "📷 Fotoğraf" : (c.son.metin || ""), "#/sohbet?c=" + ch.doc.id); } });
     first = false;
   }, () => {});
 }
 
-// ---- Duyurular: okunmamış sayısı (açılışta, 5 dakikada bir ve duyurular okununca)
+// ---- Duyurular: okunmamış sayısı (açılışta, 15 dakikada bir ve duyurular okununca)
 function watchDuyuru(me) {
-  const say = async () => { try { setBadge("duyuru", duyuruOkunmamis(me, await gelenDuyurular(me)), "yeni duyuru"); } catch (_) {} };
-  say(); setInterval(say, 5 * 60e3); window.addEventListener("salvea-duyuru", () => setBadge("duyuru", 0, "yeni duyuru")); document.addEventListener("visibilitychange", () => { if (!document.hidden) say(); });
+  let sonSay = Date.now(); const say = async () => { sonSay = Date.now(); try { setBadge("duyuru", duyuruOkunmamis(me, await gelenDuyurular(me)), "yeni duyuru"); } catch (_) {} };
+  say(); setInterval(() => { if (!document.hidden) say(); }, 15 * 60e3); window.addEventListener("salvea-duyuru", () => setBadge("duyuru", 0, "yeni duyuru")); document.addEventListener("visibilitychange", () => { if (!document.hidden && Date.now() - sonSay > 10 * 60e3) say(); });
 }
 
 // ---- Randevu: öğretmende bekleyen talepler, öğrencide yanıt gelen talepler
