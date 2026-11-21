@@ -109,6 +109,17 @@ export function setActive(key) {
 }
 
 // ---- Sohbet: okunmamış mesaj rozeti ve kısa bildirim
+// Sohbetten çıkarılan kişiye anında uyarı (ek okuma yok: zaten dinlenen sohbet listesinden gelir)
+const cikarUyarilan = {};
+window.__salveaCikarildi = (id, ad) => {
+  if (cikarUyarilan[id] && Date.now() - cikarUyarilan[id] < 15000) return; cikarUyarilan[id] = Date.now();
+  document.querySelector(".cikar-ov")?.remove();
+  const ov = el("div", "cikar-ov"), k = el("div", "cikar-k"), b = el("button", "btn", "Tamam"); b.type = "button"; b.onclick = () => ov.remove();
+  ov.setAttribute("role", "alertdialog"); ov.setAttribute("aria-modal", "true");
+  k.append(el("h3", "", "Sohbetten çıkarıldın"), el("p", "", (ad ? "“" + ad + "” sohbetinin" : "Bu sohbetin") + " üyesi olmadığın için mesajları göremez ve yazamazsın. Bir yanlışlık olduğunu düşünüyorsan sınıf öğretmenine yaz."), b);
+  ov.append(k); document.body.append(ov); b.focus();
+  window.dispatchEvent(new CustomEvent("salvea-cikarildi", { detail: { id } }));
+};
 function watchChat(me) {
   window.__salveaSohbetler = null;
   const seen = {}; let first = true, son = [];
@@ -120,7 +131,7 @@ function watchChat(me) {
     son = []; snap.forEach(d => { const c = est(d); son.push([d.id, c]); if (first && c.son) seen[d.id] = c.son.id; });
     window.__salveaSohbetler = snap; window.dispatchEvent(new Event("salvea-sohbetler"));   // sohbet ekranı aynı sonucu kullanır
     say();
-    if (!first) snap.docChanges().forEach(ch => { if (ch.type === "removed") return; const c = est(ch.doc); if (unread(c, ch.doc.id) && c.son.id !== seen[ch.doc.id]) { seen[ch.doc.id] = c.son.id; if (window.__route !== "sohbet") toast("💬 " + (c.son.ad || "Yeni mesaj"), c.son.foto ? "📷 Fotoğraf" : (c.son.metin || ""), "#/sohbet?c=" + ch.doc.id); } });
+    if (!first) snap.docChanges().forEach(ch => { if (ch.type === "removed") { const rc = est(ch.doc); window.__salveaCikarildi(ch.doc.id, rc.tur === "dm" ? "" : rc.ad); return; } const c = est(ch.doc); if (unread(c, ch.doc.id) && c.son.id !== seen[ch.doc.id]) { seen[ch.doc.id] = c.son.id; if (window.__route !== "sohbet") toast("💬 " + (c.son.ad || "Yeni mesaj"), c.son.foto ? "📷 Fotoğraf" : (c.son.metin || ""), "#/sohbet?c=" + ch.doc.id); } });
     first = false;
   }, () => {});
 }
