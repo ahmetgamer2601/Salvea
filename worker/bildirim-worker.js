@@ -174,10 +174,11 @@ const trt = () => { const d = new Date(Date.now() + 3 * 3600e3); return { saat: 
 async function sohbetSenkronla(env, s) {
   const ogr = await sorgu(env, "users", [["role", "EQUAL", "student"], ["okulId", "EQUAL", s.okulId], ["sinif", "EQUAL", s.sinif], ["sube", "EQUAL", s.sube], ["sinifOnay", "EQUAL", true]], 200), uyeAd = {}, uyeler = [];
   for (const u of ogr) { uyeler.push(u.id); uyeAd[u.id] = adOf(u); }
-  for (const id of [...new Set([...(s.sinifOgretmenleri || []), ...(s.rehberOgretmenleri || [])].filter(kimlikOk))].slice(0, 8)) { const u = await oku(env, "users/" + id); if (u && u.role === "teacher") { uyeler.push(id); uyeAd[id] = adOf(u); } }
+  const ogrt = [];
+  for (const id of [...new Set([...(s.sinifOgretmenleri || []), ...(s.rehberOgretmenleri || [])].filter(kimlikOk))].slice(0, 8)) { const u = await oku(env, "users/" + id); if (u && u.role === "teacher") { uyeler.push(id); uyeAd[id] = adOf(u); ogrt.push(id); } }
   uyeler.sort(); const chatId = "sinif_" + s.id;
-  if (!await oku(env, "sohbetler/" + chatId)) await yaz(env, "sohbetler/" + chatId, { tur: "sinif", okulId: s.okulId, ad: s.sinif + "-" + s.sube + " Sınıfı", sinifId: s.id, uyeler, uyeAd, kapali: false, olusturma: new Date(), son: null, sonTs: new Date(), okundu: {}, yaziyor: {}, aktif: {} });
-  else await yaz(env, "sohbetler/" + chatId, { uyeler, uyeAd }, ["uyeler", "uyeAd"]);
+  if (!await oku(env, "sohbetler/" + chatId)) await yaz(env, "sohbetler/" + chatId, { tur: "sinif", okulId: s.okulId, ad: s.sinif + "-" + s.sube + " Sınıfı", sinifId: s.id, uyeler, uyeAd, ogrt, kapali: false, olusturma: new Date(), son: null, sonTs: new Date(), okundu: {}, yaziyor: {}, aktif: {} });
+  else await yaz(env, "sohbetler/" + chatId, { uyeler, uyeAd, ogrt }, ["uyeler", "uyeAd", "ogrt"]);
   await yaz(env, "siniflar/" + s.id, { sohbetId: chatId, sohbetGuncelTs: new Date() }, ["sohbetId", "sohbetGuncelTs"]); return { sohbetId: chatId, uye: uyeler.length };
 }
 function havuzdanSec(s, gun) {
