@@ -139,3 +139,23 @@ body.chatmode:has(.app.inchat) .dock{display:none}
 .v-sohbet .botav{width:28px;height:28px;border-radius:50%;background:var(--forest);object-fit:contain;padding:3px;display:block}
 .v-sohbet .onay{display:flex;gap:10px;padding:6px 6px 0}.v-sohbet .onay .btn{margin:0;flex:1}
 .v-sohbet .eski-btn{align-self:center;flex:none;margin:6px 0 10px;padding:7px 16px;border:1.5px solid var(--line);border-radius:99px;background:var(--paper);color:var(--forest2);font:inherit;font-size:.82rem;font-weight:600;cursor:pointer}.v-sohbet .eski-btn:disabled{opacity:.6;cursor:default}
+
+/* ================= Telefon/tablet: sohbet tam ekran, klavye açılınca kayma yok ================= */
+.v-sohbet .comp textarea{font-size:16px}   /* iOS odaklanınca sayfayı yakınlaştırmasın */
+.v-sohbet .ib{position:relative}
+.v-sohbet .cb-bdg{position:absolute;top:1px;right:-1px;min-width:18px;height:18px;padding:0 5px;border-radius:99px;background:#d9534f;color:#fff;font-size:.68rem;font-weight:700;line-height:18px;text-align:center;box-shadow:0 0 0 2px var(--paper);animation:rozetIn .3s cubic-bezier(.2,.9,.3,1.5)}
+.v-sohbet .cb-bdg[hidden]{display:none}
+@keyframes rozetIn{from{transform:scale(.3)}to{transform:none}}
+.v-sohbet .app.klavye .comp{padding-bottom:8px}   /* klavye açıkken alt güvenli alan boşluğu gereksiz */
+@media(min-width:761px) and (max-width:899px){.v-sohbet .app,.v-sohbet .app.inchat{height:calc(var(--vvh,100dvh) - var(--dockh) - env(safe-area-inset-bottom))}.v-sohbet .app.klavye{height:var(--vvh,100dvh)!important}}
+@media(min-width:900px){.v-sohbet .app,.v-sohbet .app.inchat{height:var(--vvh,100dvh)}}
+@media(max-width:760px){
+  body.chatmode{position:fixed;left:0;right:0;width:100%;overscroll-behavior:none}   /* iOS sayfayı kaydırıp zıplatmasın */
+  .v-sohbet .app,.v-sohbet .app.inchat{height:calc(100dvh - var(--dockh) - env(safe-area-inset-bottom))}
+  body.chatmode .dock{transition:transform .34s cubic-bezier(.22,.8,.2,1)}
+  body.chatmode:has(.app.inchat) .dock{display:flex;transform:translate3d(0,110%,0);pointer-events:none}   /* dock, panelle birlikte aşağı kayar; yazı alanını asla örtmez */
+  .v-sohbet .app .side,.v-sohbet .app.inchat .side{display:flex;flex-direction:column;transition:transform .34s cubic-bezier(.22,.8,.2,1),opacity .34s}
+  .v-sohbet .app.inchat .side{transform:translate3d(-22%,0,0);opacity:.55}
+  .v-sohbet .app .main{display:flex;position:fixed;left:0;right:0;top:var(--vvt,0px);height:var(--vvh,100dvh);z-index:70;transform:translate3d(100%,0,0);visibility:hidden;transition:transform .34s cubic-bezier(.22,.8,.2,1),visibility 0s linear .34s;will-change:transform;box-shadow:-14px 0 40px rgba(0,0,0,.2);overflow:hidden}
+  .v-sohbet .app.inchat .main{display:flex;transform:none;visibility:visible;transition:transform .34s cubic-bezier(.22,.8,.2,1),visibility 0s}
+}
