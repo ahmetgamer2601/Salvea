@@ -4,6 +4,7 @@ import { mountNav, setActive } from "./nav.js";
 import { ayarYukle } from "./ayar.js";
 import { senkronla, durum as pushDurum, hazir as pushHazir } from "./push.js";
 import { rehberKontrol, rehberGoster } from "./rehber.js";
+import { yoldasBaslat } from "./pet-yoldas.js";
 import { onSnapshot } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
 const $g = id => document.getElementById(id);
@@ -102,3 +103,4 @@ window.addEventListener("hashchange", render);
 if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", e => { const g = e.data && e.data.git; if (g && g.startsWith("#/")) { if (location.hash === g) render(); else location.hash = g; } });
 mountNav(me, (ROTA[ayir().rota] || ROTA[varsayilan]).key);
 render();
+try { yoldasBaslat(me); } catch (_) {}   // sınıf hayvanı sayfalar arasında seni takip eder (ayarlardan kapatılır)
