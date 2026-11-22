@@ -3,7 +3,7 @@
 import { db } from "./firebase.js";
 import { doc, runTransaction, updateDoc } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 import { env, envYama } from "./ayar.js";
-import { SABIT, HAYVANLAR, gunAnahtar, gunEkle, gerekSayisi, ogrenciListe, isimTemizle, oyKarari, yeniPet, gunuKapat, otoSecim, dondurulabilir, camurDurumu, camurAdimim } from "./petmantik.js";
+import { SABIT, HAYVANLAR, gunAnahtar, gunEkle, gerekSayisi, ogrenciListe, isimTemizle, oyKarari, bugunGorevler, yeniPet, gunuKapat, otoSecim, dondurulabilir, camurDurumu, camurAdimim } from "./petmantik.js";
 
 const ref = id => doc(db, "sohbetler", id);
 const bugun = () => gunAnahtar(new Date());
@@ -85,4 +85,21 @@ export async function oyVer(c, tur, ad, uid) {
   if (Date.now() > (p.secimSon || 0)) throw new Error("Oylama süresi doldu.");
   const deger = tur + "|" + isimTemizle(ad); if (((p.oy || {})[uid]) === deger) return { ayni: true };
   await updateDoc(ref(c.id), { ["pet.oy." + uid]: deger }); return { ok: true };
+}
+
+// Görev kanıtı gönderince mama kazan: aynı kanıt için bir kez (cihazda tutulan kısa liste + günlük çanta güncellemesi)
+export async function gorevOdulu(uid, kanitId) {
+  const k = "salvea_odul_k_" + uid; let liste = []; try { liste = JSON.parse(localStorage.getItem(k) || "[]"); } catch (_) {}
+  if (liste.includes(kanitId)) return false;
+  await envYama(uid, { mama: SABIT.GOREV_MAMA });
+  try { localStorage.setItem(k, JSON.stringify([...liste.slice(-40), kanitId])); } catch (_) {} return true;
+}
+// İyilik görevi (yan görev): gün başına 3 görev, her biri bir kez. Yapıldı bilgisi cihazda tutulur; ödül çantaya yazılır.
+export const yanGorevKey = (uid, gun) => "salvea_yg_" + uid + "_" + gun;
+export function yanGorevYapilanlar(uid, gun) { try { return JSON.parse(localStorage.getItem(yanGorevKey(uid, gun)) || "[]"); } catch (_) { return []; } }
+export async function yanGorevYap(uid, gorevId) {
+  const gun = bugun(), g = bugunGorevler(uid, gun).find(x => x.id === gorevId); if (!g) throw new Error("Bu görev bugün sana verilmedi.");
+  const yap = yanGorevYapilanlar(uid, gun); if (yap.includes(gorevId)) return { zatenVar: true };
+  try { localStorage.setItem(yanGorevKey(uid, gun), JSON.stringify([...yap, gorevId])); } catch (_) {}
+  await envYama(uid, { [g.tur]: 1 }); return { ok: true, tur: g.tur };
 }
