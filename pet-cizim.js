@@ -150,3 +150,9 @@ export function miniKafa(tur, evre = 2, kimlik = "m", yildiz = false) {
   const s = yildiz ? yildizSvg() : evre <= 0 || !tur ? yumurtaSvg(tur, { kimlik }) : petSvg({ tur, evre, kimlik }), v = yildiz ? "30 30 140 140" : evre <= 0 || !tur ? "44 46 112 140" : "46 50 108 100";
   return s.replace('viewBox="0 0 200 200"', `viewBox="${v}"`).replace('class="pet-svg', 'class="pet-svg mini');
 }
+
+// Seri ateşi: üç katmanlı, titreyen alev ve yükselen kıvılcımlar. 1-6 gün turuncu, 7-29 gün kızıl, 30+ gün mavi.
+export function alevSvg(n = 1) {
+  const sev = n >= 30 ? 3 : n >= 7 ? 2 : 1, c = sev === 3 ? ["#2f7de1", "#7cc4ff", "#eaf7ff"] : sev === 2 ? ["#e8451f", "#ff9a2e", "#ffe27a"] : ["#f07a1c", "#ffb23d", "#fff1b0"];
+  return `<svg class="alev-svg s${sev}" viewBox="0 0 24 28" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><g class="al-dis"><path d="M12 1c1.4 5 7.2 7.2 7.2 14a7.2 7.2 0 0 1-14.4 0c0-3 1.4-4.7 3-6.4.2 2 1.2 3 2.4 3.3C9.4 8 10.6 4.4 12 1z" fill="${c[0]}"/></g><g class="al-orta"><path d="M12 9c.8 3 4.4 4.2 4.4 8.4a4.4 4.4 0 0 1-8.8 0c0-1.9.9-3 1.9-4 .2 1.2.7 1.8 1.5 2C10.4 13 11.2 11 12 9z" fill="${c[1]}"/></g><g class="al-ic"><path d="M12 15c.5 1.7 2.4 2.4 2.4 4.6a2.4 2.4 0 0 1-4.8 0c0-1 .5-1.7 1.1-2.3.2.7.5 1 .9 1.1C11.5 17.2 11.8 16.2 12 15z" fill="${c[2]}"/></g><g class="al-kiv" fill="${c[1]}"><circle cx="5.5" cy="12" r="1"/><circle cx="18.5" cy="13" r=".9"/><circle cx="14.5" cy="6" r=".8"/></g></svg>`;
+}
