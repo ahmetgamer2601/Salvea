@@ -241,6 +241,16 @@ html[data-tema="koyu"] .hr-balon::after{background:#1e2421}
 html[data-tema="koyu"] .hr-ad{color:#b6e3c6}
 html[data-tema="koyu"] .hr-atla{color:#b1c2b8}
 html[data-tema="koyu"] .hr-ileri{background:linear-gradient(#346432,#4fa862)}
+html[data-tema="koyu"] .pe-hs-u small{color:#b1c2b8}
+html[data-tema="koyu"] .pe-bar.hdf i{background:linear-gradient(90deg,#68502d,#724d31)}
+html[data-tema="koyu"] .pe-ygs{background:rgba(27,38,34,.55)}
+html[data-tema="koyu"] .pe-yg-ik.mama{background:linear-gradient(#68502d,#745332)}
+html[data-tema="koyu"] .pe-yg-ik.su{background:linear-gradient(#2a4c61,#335a76)}
+html[data-tema="koyu"] .pe-yg-btn{background:linear-gradient(#346432,#4fa862)}
+html[data-tema="koyu"] .pe-yg-btn:disabled{background:#323e35;color:#bac9c0}
+html[data-tema="koyu"] .py-balon{background:#1e2421;color:#dde8e2}
+html[data-tema="koyu"] .py-balon::after{background:#1e2421}
+html[data-tema="koyu"] .rh-yuva{color:#b1c2b8}
 
 /* ---- elle eklenen düzeltmeler ---- */
 html[data-tema="koyu"] body{background-color:var(--cream);background-image:none}
@@ -261,6 +271,8 @@ html[data-tema="koyu"] .hr-balon,html[data-tema="koyu"] .hr-balon::after{backgro
 html[data-tema="koyu"] .hr-yazi{color:#27382f}
 html[data-tema="koyu"] .pe-senin{background:#2b2640;color:#cbbbf0}
 html[data-tema="koyu"] .pe-rz.oy{background:#2b2640;color:#cbbbf0}
+html[data-tema="koyu"] .py-balon,html[data-tema="koyu"] .py-balon::after{background:#fff}
+html[data-tema="koyu"] .py-balon{color:#27382f}
 /* ---- tema geçiş animasyonu ---- */
 ::view-transition-old(root),::view-transition-new(root){animation:none;mix-blend-mode:normal}
 ::view-transition-old(root){z-index:1}::view-transition-new(root){z-index:2}
