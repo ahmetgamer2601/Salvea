@@ -1,7 +1,7 @@
 // İlk giriş rehberi: yetkiye göre (öğrenci / öğretmen) ayrı, animasyonlu. Her hesapta bir kez; sonra Menü > Rehber ya da Ayarlar'dan.
 import { ayar, ayarKaydet } from "./ayar.js";
 import { durum as pushDurum, ac as pushAc } from "./push.js";
-import { maskotSec, maskotSvg } from "./pet-rehber.js";
+import { maskotSec, maskotSvg, maskotGezi } from "./pet-rehber.js";
 export const REHBER_SURUM = 1;
 const S = g => '<svg viewBox="0 0 240 180" class="rh-svg" aria-hidden="true" focusable="false">' + g + "</svg>";
 const R = {
@@ -25,7 +25,7 @@ const OGRENCI = [
   { r: "gorev", b: "Görevlerle birlikte ilerleyin", m: ["Takımın küçük ve eğlenceli görevler alır: ortak bir çizim, nesne avı, mini röportaj…"], l: ["Her görevde herkesin bir rolü var", "Fotoğraflı kanıt gönderirsin (yüzler görünmesin)", "Öğretmenin onaylayınca takımın puan kazanır", "Puanlar okulun ortak hedefine eklenir. Kimse kimseyle yarışmaz"] },
   { r: "kesfet", b: "Keşfet: her gün yeni kartlar", m: ["Bilgiler, mini quizler, “bu mu şu mu?” soruları, günün kelimesi ve küçük cesaret görevleri seni bekliyor."], l: ["Kaydır, oyna, öğren", "Ortak ilgi alanların olan arkadaşlarla burada tanışırsın", "Cesaret görevini her gün yaparsan serin büyür"] },
   { r: "sohbet", b: "Sohbet ve seriler", m: ["Takımınla, sınıfınla ve rehber öğretmeninle yazışabilirsin."], l: ["Her gün yazışmaya devam edersen sohbet serin büyür (hafta sonu seriyi bozmaz)", "Mesaja basılı tut: yanıtla, kopyala, sil ya da öğretmene bildir", "Mesajı sağa kaydırınca yanıtlarsın", "Sınıf sohbetine ara sıra eğlenceli sorular ve etkinlikler gelir"] },
-  { r: "hayvan", b: "Sınıfın hayvanı seni bekliyor", m: mk => ["Merhaba! Ben " + mk.ad + ", bir " + mk.tanim + ". Sana kendimi ve sınıf hayvanlarını tanıtmaya geldim.", "Sınıf sohbetinizde ortak bir hayvan olacak. Hepiniz oy verip birlikte seçeceksiniz; yumurtadan çıkıp sizinle birlikte büyüyecek."], l: ["Her gün sınıfın yarısı mama ve su verirse hayvan mutlu olur", "Mama ve suyu görev yaparak ve sohbet ederek kazanırsın", "Hayvan çamura girerse iki kişi birlikte temizler: biri köpükler, diğeri durular", "Sohbet serin büyüdükçe o da büyür; üç okul günü bakılmazsa yıldıza dönüşür"] },
+  { r: "hayvan", b: "Sınıfın hayvanı seni bekliyor", m: mk => ["Merhaba! Ben " + mk.ad + ", bir " + mk.tanim + "yim. Sana kendimi ve sınıf hayvanlarını tanıtmaya geldim.", "Sınıf sohbetinizde ortak bir hayvan olacak. Hepiniz oy verip birlikte seçeceksiniz; yumurtadan çıkıp sizinle birlikte büyüyecek."], l: ["Her gün sınıfın yarısı mama ve su verirse hayvan mutlu olur", "Mama ve suyu görev yaparak ve sohbet ederek kazanırsın", "Hayvan çamura girerse iki kişi birlikte temizler: biri köpükler, diğeri durular", "Sohbet serin büyüdükçe o da büyür; üç okul günü bakılmazsa yıldıza dönüşür"] },
   { r: "etkinlik", b: "Etkinlikler ve duyurular", m: ["Öğretmenin canlı quiz, anket ve teşekkür gecesi gibi etkinlikler düzenleyebilir. Sınıflar arası ya da takımlı oynanır."], l: ["Duyurular menüsünde öğretmenlerinin mesajlarını okursun", "Sınıfım sayfasında sınıf öğretmenini ve rehber öğretmenini görürsün", "Yeni bir şey olunca bildirim gelir"] },
   { r: "guven", b: "Güvendesin ve kontrol sende", m: ["Salvea senin için güvenli bir yer olmalı."], l: ["Profilini ve fotoğrafını kimin göreceğine sen karar verirsin", "Rahatsız edici bir mesajı “Öğretmene bildir” ile iletebilirsin", "Kendini kötü hissettiğinde Ana sayfadaki “Rehber öğretmenimle konuşmak istiyorum” düğmesi var", "Acil bir durumda 112'yi ara"] },
   { r: "bildirim", ek: 1, b: "Hiçbir şeyi kaçırma", m: ["Yeni mesaj, görev ve duyuruları telefonuna bildirim olarak alabilirsin. İstediğin türleri Ayarlar'dan kapatabilirsin."] },
@@ -46,12 +46,12 @@ const OGRETMEN = [
 ];
 const el = (t, c, x) => { const e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; };
 let acik = null;
-const maskotSahne = mk => '<div class="rh-maskot"><div class="rh-mk-zip">' + maskotSvg(mk, 3, "rh") + "</div></div>";
+const maskotSahne = mk => '<div class="rh-maskot"><div class="rh-mk-zip">' + maskotSvg(mk, 3, "rh") + '</div><div class="rh-yuva"><i></i><span>Gezmeye çıktı! Düğmelerin üstünde bul beni.</span></div></div>';
 export function rehberGoster(me) {
   if (acik) return; const maskot = maskotSec(), sy = me.role === "teacher" ? OGRETMEN : OGRENCI; let i = 0, yon = 1;
-  const kok = el("div", "rh"), ust = el("div", "rh-ust"), nk = el("div", "rh-noktalar"), atla = el("button", "rh-atla", "Atla"), sahne = el("div", "rh-sahne"), alt = el("div", "rh-alt"), geri = el("button", "btn ghost rh-geri", "Geri"), ileri = el("button", "btn rh-ileri", "İleri");
+  let gezi = null; const kok = el("div", "rh"), ust = el("div", "rh-ust"), nk = el("div", "rh-noktalar"), atla = el("button", "rh-atla", "Atla"), sahne = el("div", "rh-sahne"), alt = el("div", "rh-alt"), geri = el("button", "btn ghost rh-geri", "Geri"), ileri = el("button", "btn rh-ileri", "İleri");
   kok.setAttribute("role", "dialog"); kok.setAttribute("aria-modal", "true"); kok.setAttribute("aria-label", "Salvea rehberi"); atla.type = geri.type = ileri.type = "button"; ust.append(nk, atla); alt.append(geri, ileri); kok.append(ust, sahne, alt); document.body.append(kok); document.body.classList.add("rh-acik"); acik = kok;
-  const bitir = async () => { kok.classList.add("kapan"); document.body.classList.remove("rh-acik"); acik = null; document.removeEventListener("keydown", tus); try { localStorage.setItem("salvea_rehber_" + me.uid, String(REHBER_SURUM)); } catch (_) {} try { await ayarKaydet(me.uid, { rehber: REHBER_SURUM }); } catch (_) {} setTimeout(() => kok.remove(), 350); };
+  const bitir = async () => { if (gezi) { gezi.kapat(); gezi = null; } kok.classList.add("kapan"); document.body.classList.remove("rh-acik"); acik = null; document.removeEventListener("keydown", tus); try { localStorage.setItem("salvea_rehber_" + me.uid, String(REHBER_SURUM)); } catch (_) {} try { await ayarKaydet(me.uid, { rehber: REHBER_SURUM }); } catch (_) {} setTimeout(() => kok.remove(), 350); };
   async function bildirimEk(k) {
     const d = await pushDurum(me).catch(() => null), n = t => k.append(el("p", "rh-not", t));
     if (!d || !d.hazir) return n("Telefon bildirimleri henüz kurulmadı. Kurulunca Ayarlar'dan açabilirsin."); if (d.abone) return k.append(el("p", "rh-ok", "Bildirimler bu cihazda açık ✓"));
@@ -59,11 +59,14 @@ export function rehberGoster(me) {
     const b = el("button", "btn", "Bildirimleri aç"); b.type = "button"; b.onclick = async () => { b.disabled = true; try { await pushAc(me, { onizleme: false }); k.replaceChildren(el("p", "rh-ok", "Bildirimler açıldı ✓")); } catch (e) { b.disabled = false; n(e.message || "Açılamadı."); } }; k.append(b);
   }
   function ciz() {
+    if (gezi) { gezi.kapat(); gezi = null; }
     const p = sy[i], s = el("div", "rh-sayfa " + (yon > 0 ? "ileri" : "geri")), sn = el("div", "rh-sanat"); nk.replaceChildren(...sy.map((_, k) => el("i", k === i ? "on" : k < i ? "gec" : "")));
     sn.innerHTML = R[p.r] || maskotSahne(maskot); s.append(sn, el("h2", "", p.b)); (typeof p.m === "function" ? p.m(maskot) : p.m || []).forEach(t => s.append(el("p", "rh-metin", t)));
     if (p.l) { const ul = el("ul", "rh-liste"); p.l.forEach((t, k) => { const li = el("li", "", t); li.style.animationDelay = 0.25 + k * 0.12 + "s"; ul.append(li); }); s.append(ul); }
     if (p.ek) { const k = el("div", "rh-ek"); s.append(k); bildirimEk(k); }
-    sahne.replaceChildren(s); geri.style.visibility = i ? "visible" : "hidden"; ileri.textContent = i === sy.length - 1 ? "Başlayalım" : "İleri"; atla.hidden = i === sy.length - 1;
+    sahne.replaceChildren(s); geri.style.visibility = i ? "visible" : "hidden";
+    if (p.r === "hayvan") setTimeout(() => { if (sy[i] !== p || kok.classList.contains("kapan") || gezi) return; gezi = maskotGezi({ maskot, baslangic: () => sahne.querySelector(".rh-mk-zip"), adimlar: [
+      { hedef: () => ileri, metin: "Hazırsan şuna bas, birlikte devam edelim!" }, { hedef: () => atla, metin: "Acelen varsa buradan atlayabilirsin ama beni tanımadan gitme, olur mu?" }, { hedef: () => ileri, metin: "Hadi, düğmeye bas. Ben burada seni bekliyorum!", bekle: 3000 }] }); }, 800); ileri.textContent = i === sy.length - 1 ? "Başlayalım" : "İleri"; atla.hidden = i === sy.length - 1;
   }
   const git = d => { const y = i + d; if (y < 0) return; if (y >= sy.length) return bitir(); yon = d; i = y; ciz(); };
   geri.onclick = () => git(-1); ileri.onclick = () => git(1); atla.onclick = bitir;
