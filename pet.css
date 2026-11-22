@@ -170,3 +170,38 @@ body.pe-kilit{overflow:hidden}
 .rh-maskot{position:relative;width:190px;height:190px;margin:0 auto}.rh-mk-zip{width:100%;height:100%;transform-origin:50% 94%;animation:rhZip 2.4s cubic-bezier(.3,1.3,.5,1) infinite}
 @keyframes rhZip{0%,100%{transform:translateY(0) scale(1.06,.92)}18%{transform:translateY(-34px) scale(.95,1.07)}34%{transform:translateY(0) scale(1.08,.9)}44%{transform:translateY(-8px) scale(.99,1.02)}56%{transform:translateY(0) scale(1)}}
 @media(prefers-reduced-motion:reduce){.hr-ov *,.hr-bas,.rh-mk-zip{animation:none!important;transition:none!important}}
+
+/* ================= seri ateşi ================= */
+.alev-svg{width:16px;height:19px;overflow:visible;flex:none}
+.alev-svg .al-dis{transform-origin:12px 26px;animation:alDis 1.15s ease-in-out infinite}.alev-svg .al-orta{transform-origin:12px 25px;animation:alOrta .9s ease-in-out infinite}.alev-svg .al-ic{transform-origin:12px 22px;animation:alIc .7s ease-in-out infinite}
+.alev-svg .al-kiv circle{opacity:0;animation:alKiv 1.7s ease-out infinite}.alev-svg .al-kiv circle:nth-child(2){animation-delay:.6s}.alev-svg .al-kiv circle:nth-child(3){animation-delay:1.1s}
+.alev-svg.s2{filter:drop-shadow(0 0 3px rgba(255,120,40,.7))}.alev-svg.s3{filter:drop-shadow(0 0 4px rgba(80,160,255,.85))}
+@keyframes alDis{0%,100%{transform:scale(1,1) skewX(0)}30%{transform:scale(.97,1.07) skewX(2deg)}65%{transform:scale(1.03,.97) skewX(-2deg)}}
+@keyframes alOrta{0%,100%{transform:scale(1,1)}40%{transform:scale(1.06,1.1) skewX(-3deg)}75%{transform:scale(.96,.95)}}
+@keyframes alIc{0%,100%{transform:scale(1)}50%{transform:scale(1.12,1.15)}}
+@keyframes alKiv{0%{opacity:0;transform:translateY(4px)}20%{opacity:1}100%{opacity:0;transform:translateY(-9px)}}
+.pe-ust-seri .alev-svg,.pe-seri-chip .alev-svg{width:17px;height:20px}.seri-chip .alev-svg{width:15px;height:18px;margin-right:1px}
+/* ================= maskot gezisi (rehber) ================= */
+.hr-gezi{position:fixed;inset:0;z-index:900;pointer-events:none;opacity:1;transition:opacity .25s}.hr-gezi.kapan{opacity:0}.hr-gezi .hr-balon{pointer-events:none}
+@media(prefers-reduced-motion:reduce){.alev-svg *{animation:none!important}.hr-gezi *{animation:none!important;transition:none!important}}
+
+/* ================= iyilik görevleri ve sınıf hedefleri ================= */
+.pe-hedef{display:grid;gap:8px}.pe-hs{display:grid;gap:4px}.pe-hs-u{display:flex;justify-content:space-between;align-items:baseline}.pe-hs-u small{font-size:.78rem;color:#6d7a72}.pe-hs-u b{font-size:.8rem}.pe-bar.hdf i{background:linear-gradient(90deg,#f6b350,#ef8a3a)}
+.pe-yg{background:var(--mist);border-radius:18px;padding:13px 14px;display:grid;gap:9px}.pe-ygs{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.55);border-radius:14px;padding:8px 10px}.pe-ygs.tamam{opacity:.6}
+.pe-yg-ik{flex:none;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;color:#fff}.pe-yg-ik.mama{background:linear-gradient(#f6b350,#e8923a)}.pe-yg-ik.su{background:linear-gradient(#6cbcf0,#3b9ce0)}.pe-yg-ik .pe-i{width:19px;height:19px}
+.pe-yg-m{flex:1;display:grid;line-height:1.3;min-width:0}.pe-yg-m small{font-size:.7rem;text-transform:uppercase;letter-spacing:.04em;color:#8a958e}.pe-yg-m span{font-size:.86rem}
+.pe-yg-btn{flex:none;border:0;border-radius:99px;padding:8px 13px;background:linear-gradient(#7cc87a,#4fa862);color:#fff;font:inherit;font-size:.8rem;font-weight:700;cursor:pointer;box-shadow:0 3px 0 rgba(0,0,0,.14)}.pe-yg-btn:active:not(:disabled){transform:translateY(2px);box-shadow:none}.pe-yg-btn:disabled{background:#c6d3c9;color:#5f6e65;box-shadow:none;cursor:default}
+/* ================= yoldaş hayvan (sayfalar arasında seni takip eder) ================= */
+.py{position:fixed;left:0;bottom:calc(var(--dockh) + env(safe-area-inset-bottom) + 4px);z-index:55;width:84px;height:84px;pointer-events:none;will-change:transform;transform:translate3d(-200px,0,0)}
+@media(min-width:900px){.py{bottom:14px}}
+.py[hidden]{display:none}
+.py-hayvan{width:100%;height:100%;pointer-events:auto;cursor:pointer;touch-action:manipulation;transform-origin:50% 92%;-webkit-tap-highlight-color:transparent;filter:drop-shadow(0 3px 4px rgba(0,0,0,.18))}
+.py-hayvan .pet-svg{transform:scaleX(var(--bakis,1));transition:transform .25s}
+.py.yurur .py-hayvan{animation:pyYuru .46s ease-in-out infinite}.py.korku .py-hayvan{animation:pyKorku .26s ease-in-out infinite}.py-hayvan.zipla{animation:pyZipla .7s cubic-bezier(.3,1.5,.5,1)}.py-hayvan.hapsir{animation:pyHapsir .8s ease-out}.py-hayvan.saklan{filter:brightness(.92) drop-shadow(0 3px 4px rgba(0,0,0,.18))}
+.py-balon{position:absolute;left:50%;bottom:90px;width:max-content;max-width:210px;transform:translateX(calc(-50% + var(--sh,0px))) translateY(6px) scale(.92);opacity:0;pointer-events:none;background:#fff;color:#27382f;border-radius:16px;padding:8px 12px;font-size:.84rem;font-weight:600;line-height:1.35;text-align:center;box-shadow:0 6px 18px rgba(0,0,0,.22);transition:opacity .22s,transform .28s cubic-bezier(.2,1.3,.4,1)}
+.py-balon.goster{opacity:1;transform:translateX(calc(-50% + var(--sh,0px))) translateY(0) scale(1)}
+.py-balon::after{content:"";position:absolute;left:calc(50% - var(--sh,0px));bottom:-6px;width:12px;height:12px;background:#fff;transform:translateX(-50%) rotate(45deg);border-radius:3px}
+@keyframes pyYuru{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-6px) rotate(2deg)}}@keyframes pyKorku{0%,100%{transform:translateX(-2px)}50%{transform:translateX(2px)}}
+@keyframes pyZipla{0%{transform:none}30%{transform:translateY(-22px) scale(.96,1.06)}55%{transform:translateY(0) scale(1.08,.92)}100%{transform:none}}@keyframes pyHapsir{0%{transform:none}25%{transform:scale(.92,1.08) translateY(-4px)}40%{transform:scale(1.12,.88)}60%{transform:translateX(-5px) scale(1.04,.96)}100%{transform:none}}
+@media(prefers-reduced-motion:reduce){.py,.py *{animation:none!important;transition:none!important}}
+.rh-yuva{position:absolute;left:0;right:0;bottom:6px;display:grid;justify-items:center;gap:8px;opacity:0;transition:opacity .35s;pointer-events:none;font-size:.84rem;color:#6d7a72;text-align:center}.rh-yuva i{width:104px;height:14px;border-radius:50%;background:rgba(0,0,0,.09)}.rh-maskot.gezide .rh-yuva{opacity:1}
