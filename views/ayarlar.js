@@ -10,6 +10,7 @@ export const html = `<header class="top"><div class="tile"><img src="logo.png" a
 <h3>Sohbet rengi</h3><div class="swg" id="tm"></div>
 <h3>Mesaj rengi</h3><div class="swg" id="bl"></div>
 <div id="okSw"></div></section>
+<section class="setcard"><h2>Sınıf hayvanı</h2><div id="pyAn"></div></section>
 <section class="setcard"><h2>Yardım</h2><p class="hint">Salvea'nın nasıl çalıştığını kısa bir turla yeniden görebilirsin.</p><div class="setbtns"><button class="btn sm ghost" id="rhBtn" type="button">Rehberi yeniden göster</button></div></section>`;
 export const max = "640px";
 
@@ -70,5 +71,6 @@ export default async function mount(ctx) {
     return b;
   }));
   if (window.Tema) uygCiz(); else $("uyTm").closest("section").hidden = true;
+  $("pyAn").append(anahtar("Hayvan yanımda gezsin", "Sınıf hayvanı ana sayfada ve diğer sayfalarda ara sıra görünür, laf atar ve seni izler. Bu tercih yalnızca bu cihazda saklanır.", (() => { try { return localStorage.getItem("salvea_yoldas") !== "0"; } catch (_) { return true; } })(), async v => { try { localStorage.setItem("salvea_yoldas", v ? "1" : "0"); } catch (_) {} window.dispatchEvent(new Event("salvea-yoldas")); }));
   $("okSw").append(anahtar("Okundu bilgisini göster", "Kapatırsan başkaları mesajlarını ne zaman okuduğunu göremez; sen de onların okundu bilgisini göremezsin.", !ayar().okunduGizle, v => { Object.assign(ayar(), { okunduGizle: !v }); return ayarKaydet(me.uid, { okunduGizle: !v }); }));
 }
