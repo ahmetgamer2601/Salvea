@@ -1,11 +1,11 @@
 // Sınıf hayvanı penceresi (TikTok tarzı tam ekran alt sayfa). Canlı sahne, seçim, besleme, çamur temizliği, seri ve bakıcı listesi.
 // Veri ek okuma doğurmaz: getChat() zaten dinlenen sınıf sohbet belgesini döndürür; yenileme "salvea-sohbetler" olayıyla gelir.
 import { petSvg, yumurtaSvg, yildizSvg } from "./pet-cizim.js";
-import { petDurum, HAYVANLAR, SABIT, gunAnahtar, seriHesapla, dondurulabilir, camurAdimim, oySayim, oyAyir, isimTemizle, bakimEkibi } from "./petmantik.js";
+import { petDurum, HAYVANLAR, SABIT, gunAnahtar, seriHesapla, dondurulabilir, camurAdimim, oySayim, oyAyir, isimTemizle, bakimEkibi, bugunGorevler, hedefler } from "./petmantik.js";
 import { sozSec, dokunTepkisi, eylemSozu } from "./pet-soz.js";
-import { petSec, oyVer, besle, temizle, yeniYumurta, seriDondur } from "./pet.js";
+import { petSec, oyVer, besle, temizle, yeniYumurta, seriDondur, yanGorevYap, yanGorevYapilanlar } from "./pet.js";
 import { maskotTur, maskotSec } from "./pet-rehber.js";
-import { miniKafa } from "./pet-cizim.js";
+import { miniKafa, alevSvg } from "./pet-cizim.js";
 import { env } from "./ayar.js";
 
 const el = (t, c, txt) => { const e = document.createElement(t); if (c) e.className = c; if (txt != null) e.textContent = txt; return e; };
@@ -138,6 +138,24 @@ export function petEkraniAc({ chatId, me, getChat, onKapat }) {
     liste.append(el("p", "pe-gizli", "Mama ve su çantan sana özel; başkaları görmez. Burada yalnızca bugünkü sıra ve yapılan işler görünür."));
     kutu.append(liste); return kutu;
   }
+  /* ---------- sınıf hedefleri ve iyilik görevleri ---------- */
+  function hedefCiz(c) {
+    const kutu = el("div", "pe-hedef");
+    hedefler(c).forEach(h => { const sat = el("div", "pe-hs"), ust2 = el("div", "pe-hs-u"); ust2.append(el("small", "", "Sınıf hedefi: " + h.ad), el("b", "", h.n + "/" + h.hedef)); sat.append(ust2, bar(h.n, h.hedef, "hdf")); kutu.append(sat); });
+    return kutu;
+  }
+  function gorevlerCiz() {
+    const kutu = el("div", "pe-yg"), bk = gunAnahtar(new Date()), liste = bugunGorevler(me.uid, bk), yapilan = yanGorevYapilanlar(me.uid, bk);
+    kutu.append(el("h3", "", "Bugünkü iyilik görevlerin"), el("p", "pe-alt", "Birbirinize iyi davranmak hayvanınızı da mutlu eder. Yaptıkça mama ve su kazanırsın. Dürüstçe işaretle: amaç sınıfça birbirimize yaklaşmak."));
+    liste.forEach(g => {
+      const yap = yapilan.includes(g.id), sat = el("div", "pe-ygs" + (yap ? " tamam" : "")), ic = el("span", "pe-yg-ik " + g.tur); ic.innerHTML = ik(g.tur === "mama" ? "mama" : "su");
+      const m = el("div", "pe-yg-m"); m.append(el("small", "", g.kat), el("span", "", g.metin));
+      const b = el("button", "pe-yg-btn", yap ? "Yapıldı ✓" : "Yaptım  +1"); b.type = "button"; b.disabled = yap;
+      b.onclick = async () => { b.disabled = true; try { const r = await yanGorevYap(me.uid, g.id); if (r.ok) { kalpler(4); titret(); toast("+1 " + g.tur + " kazandın. Böyle devam!", true); konus(eylemSozu("genel", { ad })); } } catch (er) { toast(er.message || "Olmadı."); b.disabled = false; } finally { panelCiz(); } };
+      sat.append(ic, m, b); kutu.append(sat);
+    });
+    return kutu;
+  }
   function seciciCiz(d, degistirMi) {
     const k = el("div", "pe-sec");
     const bas = el("div", "pe-bas"); bas.append(el("h2", "", "Hayvanı değiştir"));
@@ -181,10 +199,10 @@ export function petEkraniAc({ chatId, me, getChat, onKapat }) {
     bas.append(el("p", "pe-alt", alt)); k.append(bas);
     if (d.sonrakiEvre) { const g = el("div", "pe-gel"); const e0 = [0, 1, 5, 12, 24][d.evre], e1 = [0, 1, 5, 12, 24][d.evre + 1]; g.append(bar(d.gelisim - e0, e1 - e0, "gel"), el("small", "", d.sonrakiEvre.ad + " olmasına " + d.sonrakiEvre.kalan + " bakım günü")); k.append(g); }
     // seri
-    const sat = el("div", "pe-seri"); const chip = el("span", "pe-seri-chip" + (sr.n >= 30 ? " b3" : sr.n >= 7 ? " b2" : "")); chip.innerHTML = ik("alev") + "<b>" + sr.n + "</b> günlük seri"; sat.append(chip);
+    const sat = el("div", "pe-seri"); const chip = el("span", "pe-seri-chip" + (sr.n >= 30 ? " b3" : sr.n >= 7 ? " b2" : "")); chip.innerHTML = alevSvg(sr.n) + "<b>" + sr.n + "</b> günlük seri"; sat.append(chip);
     if (sr.dondurulmus) sat.append(el("span", "pe-donuk", "Bugün donduruldu"));
     else { const dd = dondurulabilir(c, bk); if (dd.ok && sr.n >= 2) { const b = el("button", "pe-dondur", ""); b.type = "button"; b.innerHTML = ik("buz") + " Seriyi dondur <small>(" + d.dondur.kalan + " hak)</small>"; let onay = false; b.onclick = async () => { if (!onay) { onay = true; b.classList.add("emin"); b.innerHTML = ik("buz") + " Emin misin? Tekrar dokun"; setTimeout(() => { if (!b.isConnected) return; onay = false; b.classList.remove("emin"); b.innerHTML = ik("buz") + " Seriyi dondur <small>(" + d.dondur.kalan + " hak)</small>"; }, 3500); return; } try { await seriDondur(getChat(), bk); toast("Bugün donduruldu. Seri güvende!", true); panelCiz(); } catch (er) { toast(er.message || "Dondurulamadı."); } }; sat.append(b); } }
-    k.append(sat);
+    k.append(sat); k.append(hedefCiz(c));
     // bugünkü bakım
     if (d.evre > 0) {
       const g = el("div", "pe-gun"); g.append(el("h3", "", "Bugünkü bakım"), el("p", "pe-alt", "Sınıfın yarısı (" + d.gerek + " kişi) mama ve su verirse " + d.ad + " mutlu olur."));
@@ -203,6 +221,7 @@ export function petEkraniAc({ chatId, me, getChat, onKapat }) {
       k.append(eylem);
       k.append(el("p", "pe-canta", "Çantan: " + e.mama + " mama · " + e.su + " su. Günün ilk sınıf mesajı 1 su, çamuru temizlemek 1 mama kazandırır."));
     }
+    k.append(gorevlerCiz());
     k.append(ekipCiz(d, c));
     if (d.degistirilebilir && d.evre >= 0) { const l = el("button", "pe-link", "Hayvanı değiştir (bir kez, " + SABIT.DEGISTIR_MAMA + " mama)"); l.type = "button"; l.onclick = () => { mod = "degistir"; secim = null; yazilan = ""; panelCiz(); }; k.append(l); }
     return k;
@@ -245,7 +264,7 @@ export function petEkraniAc({ chatId, me, getChat, onKapat }) {
   }
   function ustCiz(d, c) {
     ust.replaceChildren(); if (!d.var) return; const sr = seriHesapla(c);
-    if (d.mod !== "secim") { const s = el("span", "pe-ust-seri"); s.innerHTML = ik("alev") + "<b>" + sr.n + "</b>"; ust.append(s); }
+    if (d.mod !== "secim") { const s = el("span", "pe-ust-seri"); s.innerHTML = alevSvg(sr.n) + "<b>" + sr.n + "</b>"; ust.append(s); }
     const sinif = (c.ad || "").replace(/ Sınıfı$/, ""); ust.append(el("span", "pe-ust-ad", d.mod === "secim" ? sinif + " sınıfı" : (d.ad ? d.ad + " · " + sinif : sinif)));
   }
   function panelCiz() {
@@ -260,7 +279,7 @@ export function petEkraniAc({ chatId, me, getChat, onKapat }) {
   /* ---------- maskot rehberi ---------- */
   function turAdimlari() {
     const { d } = veri(), q = s => () => panel.querySelector(s) || sahne.querySelector(s) || null, a = [];
-    a.push({ hedef: () => hayvanKutu.querySelector(".pe-oyun") || hayvanKutu, metin: m => "Merhaba, ben " + m.ad + "! Bir " + m.tanim + ". " + (d.mod === "secim" ? "Sınıfınızın hayvanını birlikte seçmeniz için buradayım." : "Bu pencerede sınıfınızın hayvanına birlikte bakacaksınız.") + " Ona dokunursan tepki verir." });
+    a.push({ hedef: () => hayvanKutu.querySelector(".pe-oyun") || hayvanKutu, metin: m => "Merhaba, ben " + m.ad + "! Bir " + m.tanim + "yim. " + (d.mod === "secim" ? "Sınıfınızın hayvanını birlikte seçmeniz için buradayım." : "Bu pencerede sınıfınızın hayvanına birlikte bakacaksınız.") + " Ona dokunursan tepki verir." });
     a.push({ hedef: q(".pe-ust-seri"), metin: () => "Bu, sınıfınızın günlük sohbet serisi. Her gün yazışırsanız büyür. Hafta sonu seriyi bozmaz, istersen ayda iki kez dondurabilirsin." });
     if (d.mod === "secim") {
       a.push({ hedef: q(".pe-kart"), metin: () => "Bir karta dokunup oy ver. En çok oyu alan hayvan sınıfınız olur. Önce davranan değil, herkes birlikte karar verir." });
@@ -271,6 +290,7 @@ export function petEkraniAc({ chatId, me, getChat, onKapat }) {
       a.push({ hedef: q(".pe-btn.mama"), metin: () => "Mama vermek için buraya bas. Mama ve suyu görev yaparak ve sohbet ederek kazanırsın." });
       a.push({ hedef: q(".pe-btn.su"), metin: () => "Su da aynı şekilde. Bugün sıra sende olabilir, haberin olsun!" });
       a.push({ hedef: q(".pe-camur"), metin: () => "Hayvan arada çamura girer. İki kişi birlikte temizler: biri köpükler, diğeri durular. Konuşup anlaşın!" });
+      a.push({ hedef: q(".pe-yg"), metin: () => "Her gün sana üç iyilik görevi düşer: teşekkür etmek, yardım teklif etmek gibi. Yaptıkça mama ve su kazanırsın." });
     }
     a.push({ hedef: q(".pe-ekip-ac"), metin: () => "Burada kimin sırası olduğunu ve kimlerin ilgilendiğini görürsün." });
     a.push({ hedef: () => yardimB, metin: m => "Beni tekrar görmek istersen buraya bas. Hayvanınıza iyi bakın, hoşça kalın!" });
