@@ -4,6 +4,7 @@ import { bildir } from "../push.js";
 import { resizeFit, indir } from "../foto.js";
 import { GOREVLER, SEVIYE } from "../gorevler.js";
 import { collection, query, where, getDocs, getDoc, doc, setDoc, updateDoc, deleteDoc, writeBatch, runTransaction, increment, deleteField, Timestamp, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+import { gorevOdulu } from "../pet.js";
 
 export const html = `<header class="top"><div class="tile"><img src="logo.png" alt="Salvea"></div><div><b id="hi">Yükleniyor…</b><span id="sc"></span></div></header>
 <div class="tabs" id="tabs" hidden></div>
@@ -88,7 +89,7 @@ export default async function mount(ctx) {
             b.set(doc(db, "gorevKanitlari", id), meta);
             b.set(doc(db, "kanitFotolari", id), { okulId: me.okulId, foto, silinmeTs: st, ts: serverTimestamp() });
             await b.commit();
-            bildir("kanitGonder", { id }); fc[id] = Promise.resolve(foto); kn = kn.filter(x => x.atamaId !== g.id).concat({ id, ...meta }); show("Kanıtın öğretmene gönderildi.", true); draw(); });
+            const odul = await gorevOdulu(me.uid, id).catch(() => false); bildir("kanitGonder", { id }); fc[id] = Promise.resolve(foto); kn = kn.filter(x => x.atamaId !== g.id).concat({ id, ...meta }); show("Kanıtın öğretmene gönderildi." + (odul ? " Hayvanın için +2 mama kazandın!" : ""), true); draw(); });
           c.append(lb, f, nt, sk, go);
         }
         parts.push(c);
