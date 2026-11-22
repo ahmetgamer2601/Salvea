@@ -63,3 +63,38 @@ export function maskotTur({ adimlar, maskot, onBitir, yerlesim }) {
   acik = { kapat: bitir, mk };
   return acik;
 }
+
+/* ---------- maskot gezisi: düğmeler arasında kendiliğinden zıplar, indiği düğme çöker (tıklamayı engellemez) ---------- */
+const saglaEl = h => { h.classList.remove("hr-bas"); void h.offsetWidth; h.classList.add("hr-bas"); setTimeout(() => h.classList.remove("hr-bas"), 950); };
+function zipla(kisi, onceki, x, y) {
+  const dx = onceki.x - x, dy = onceki.y - y, yuk = Math.min(150, 70 + Math.abs(dy) * 0.25 + Math.abs(dx) * 0.12);
+  return kisi.animate([
+    { transform: "translate(" + dx + "px," + dy + "px) scale(1.14,.84)", offset: 0 }, { transform: "translate(" + dx * 0.55 + "px," + (dy * 0.55 - yuk) + "px) scale(.92,1.1)", offset: 0.3 },
+    { transform: "translate(" + dx * 0.12 + "px," + (dy * 0.12 - yuk * 0.5) + "px) scale(.95,1.06)", offset: 0.6 }, { transform: "translate(0,0) scale(1.16,.82)", offset: 0.8 },
+    { transform: "translate(0,-9px) scale(.96,1.07)", offset: 0.9 }, { transform: "translate(0,0) scale(1,1)", offset: 1 },
+  ], { duration: 900, easing: "cubic-bezier(.35,.1,.3,1)" });
+}
+export function maskotGezi({ adimlar, maskot, baslangic, bekle = 3400, onBitir }) {
+  const mk = maskot || maskotSec(), kok = el("div", "hr-gezi"), kisi = el("div", "hr-maskot"), balon = el("div", "hr-balon"), yazi = el("p", "hr-yazi");
+  balon.setAttribute("aria-live", "polite"); kisi.innerHTML = maskotSvg(mk, 3, "hz"); balon.append(el("b", "hr-ad", mk.ad), yazi); kok.append(kisi, balon); document.body.append(kok);
+  let k = -1, son = null, bitti = false, z1 = 0, z2 = 0, bas = null; const rd = azalt();
+  const bit0 = baslangic ? baslangic() : null; if (bit0) { bas = bit0; bas.style.visibility = "hidden"; if (bas.parentElement) bas.parentElement.classList.add("gezide"); }
+  const ilk = () => { if (bit0) { const r = bit0.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.bottom - 8 }; } return { x: innerWidth / 2, y: innerHeight + 60 }; };
+  function balonYer(x, y, alta) {
+    const w = Math.min(280, innerWidth - 24), sol = Math.max(12, Math.min(innerWidth - w - 12, x - w / 2)); balon.style.width = w + "px"; balon.style.left = sol + "px";
+    if (alta) { balon.style.top = Math.min(innerHeight - 140, y + 14) + "px"; balon.style.bottom = "auto"; balon.classList.add("alta"); } else { balon.style.bottom = Math.max(12, innerHeight - (y - 96)) + "px"; balon.style.top = "auto"; balon.classList.remove("alta"); }
+    balon.style.setProperty("--ok", Math.max(18, Math.min(w - 18, x - sol)) + "px");
+  }
+  function sonraki() {
+    if (bitti) return; k++; if (k >= adimlar.length) return bosta();
+    const a = adimlar[k]; let h = null; try { h = a.hedef(); } catch (_) {} if (!h || !h.isConnected || h.hidden || !h.offsetParent) return sonraki();
+    const r = h.getBoundingClientRect(), x = Math.max(46, Math.min(innerWidth - 46, r.left + r.width / 2)), y = r.top + 2, onceki = son || ilk(), alta = y < 150; son = { x, y };
+    kisi.style.left = x + "px"; kisi.style.top = y + "px"; kisi.classList.add("goster"); balon.classList.remove("goster");
+    const goster = () => { if (bitti) return; yazi.textContent = typeof a.metin === "function" ? a.metin(mk) : a.metin; balonYer(x, alta ? r.bottom + 70 : y, alta); balon.classList.remove("goster"); void balon.offsetWidth; balon.classList.add("goster"); z1 = setTimeout(sonraki, a.bekle || bekle); };
+    if (rd) { goster(); return; }
+    const an = zipla(kisi, onceki, x, y); z2 = setTimeout(() => { if (!bitti) saglaEl(h); }, 720); an.onfinish = goster;
+  }
+  function bosta() { if (bitti || rd) return; z1 = setTimeout(function hop() { if (bitti) return; kisi.animate([{ transform: "translate(0,0) scale(1.1,.9)" }, { transform: "translate(0,-26px) scale(.96,1.06)" }, { transform: "translate(0,0) scale(1.12,.88)" }, { transform: "none" }], { duration: 700, easing: "ease-out" }); z1 = setTimeout(hop, 5200); }, 2600); }
+  function kapat() { if (bitti) return; bitti = true; clearTimeout(z1); clearTimeout(z2); if (bas) { bas.style.visibility = ""; if (bas.parentElement) bas.parentElement.classList.remove("gezide"); } kok.classList.add("kapan"); setTimeout(() => kok.remove(), 260); if (onBitir) onBitir(); }
+  setTimeout(sonraki, 400); return { kapat, mk };
+}
