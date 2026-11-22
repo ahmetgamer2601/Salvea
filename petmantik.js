@@ -1,7 +1,7 @@
 // Sınıf evcil hayvanı ve sohbet serisi: SAF mantık. Hiçbir dış bağımlılığı yok (tarayıcıda da node'da da çalışır, test edilebilir).
 // Durum, sınıf sohbet belgesindeki `pet` alanında durur; zaten dinlenen belge olduğu için ek okuma doğurmaz.
 
-export const SABIT = { SECIM_GUN: 3, ACLIK_OLUM: 3, DEGISTIR_MAMA: 5, DONDUR_AYLIK: 2, GUNLUK_ODUL_SU: 1, TEMIZLE_ODUL_MAMA: 1 };
+export const SABIT = { GOREV_MAMA: 2, YAN_GOREV_SAYI: 3, SECIM_GUN: 3, ACLIK_OLUM: 3, DEGISTIR_MAMA: 5, DONDUR_AYLIK: 2, GUNLUK_ODUL_SU: 1, TEMIZLE_ODUL_MAMA: 1 };
 
 export const HAYVANLAR = [
   { id: "civciv", ad: "Civciv", renk: "#f5c542", ozellik: "Meraklı ve pofuduk", isimler: ["Pofuduk", "Limon", "Mısır", "Cıvıl", "Sarı"] },
@@ -21,6 +21,35 @@ export const EVRELER = [
 ];
 
 export function hash(s) { let h = 2166136261; s = String(s); for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+
+/* ---------- iyilik görevleri (yan görevler): iletişim, empati, yardım, takım. Dürüstlük esaslı; sınıfça konuşmayı ve yardımlaşmayı artırır ---------- */
+export const YAN_GOREVLER = [
+  { id: "i1", kat: "iletişim", tur: "mama", metin: "Bugün sınıftan birine teşekkür et." }, { id: "i2", kat: "iletişim", tur: "su", metin: "Bir arkadaşına güzel bir söz söyle." },
+  { id: "i3", kat: "iletişim", tur: "mama", metin: "Pek konuşmadığın bir arkadaşına bir soru sor." }, { id: "i4", kat: "iletişim", tur: "su", metin: "Bir arkadaşınla adını söyleyerek selamlaş." },
+  { id: "i5", kat: "iletişim", tur: "mama", metin: "Bugün yeni biriyle birkaç cümle sohbet et." }, { id: "i6", kat: "iletişim", tur: "su", metin: "Birini sözünü kesmeden sonuna kadar dinle." },
+  { id: "e1", kat: "empati", tur: "mama", metin: "Yalnız görünen birine gülümse ya da yanına otur." }, { id: "e2", kat: "empati", tur: "su", metin: "Bir arkadaşına “nasılsın?” diye gerçekten sor." },
+  { id: "e3", kat: "empati", tur: "mama", metin: "Birinin üzgün olduğunu fark edersen yanına git." }, { id: "e4", kat: "empati", tur: "su", metin: "Bir arkadaşına onun güzel bir yanını söyle." },
+  { id: "e5", kat: "empati", tur: "mama", metin: "Farklı düşünen birini önce dinle, sonra konuş." }, { id: "e6", kat: "empati", tur: "su", metin: "Bir tartışmada karşındakinin yerine kendini koy." },
+  { id: "y1", kat: "yardım", tur: "mama", metin: "Bir arkadaşına ders ya da ödevde yardım teklif et." }, { id: "y2", kat: "yardım", tur: "su", metin: "Sınıfta toplanması gereken bir şeye yardım et." },
+  { id: "y3", kat: "yardım", tur: "mama", metin: "Birine ihtiyacı olan bir şeyi ödünç ver." }, { id: "y4", kat: "yardım", tur: "su", metin: "Yeni ya da çekingen birine okulu tanıt." },
+  { id: "y5", kat: "yardım", tur: "mama", metin: "Bir arkadaşına moral ver." }, { id: "y6", kat: "yardım", tur: "su", metin: "Öğretmenine küçük bir iyilik yap ya da teşekkür et." },
+  { id: "t1", kat: "takım", tur: "mama", metin: "Takım arkadaşına görevde nasıl yardım edebileceğini sor." }, { id: "t2", kat: "takım", tur: "su", metin: "Gruba katılmayan birini çalışmaya ya da oyuna davet et." },
+  { id: "t3", kat: "takım", tur: "mama", metin: "Sınıfta birinin iyi bir fikrini destekle." }, { id: "t4", kat: "takım", tur: "su", metin: "Bir hata yaptıysan özür dile." },
+  { id: "t5", kat: "takım", tur: "mama", metin: "Pek konuşmadığın biriyle ortak bir ilgi alanı bul." }, { id: "t6", kat: "takım", tur: "su", metin: "Bir arkadaşına “iyi ki varsın” de." },
+];
+// Her öğrenciye her gün 3 farklı kategoriden 3 görev; kişiye ve güne göre sabit (ek okuma/yazma yok)
+export function bugunGorevler(uid, gun) {
+  const kats = ["iletişim", "empati", "yardım", "takım"].map(k => [hash(uid + ":" + gun + ":k:" + k), k]).sort((a, b) => a[0] - b[0]).slice(0, SABIT.YAN_GOREV_SAYI).map(x => x[1]);
+  return kats.map(k => { const l = YAN_GOREVLER.filter(g => g.kat === k); return l[hash(uid + ":" + gun + ":" + k) % l.length]; });
+}
+// Sınıf hedefleri: kimseyi sıralamadan ortak ilerleme
+export function hedefler(c, simdi = new Date()) {
+  const sr = seriHesapla(c, simdi), h = [], sonraki = [3, 7, 14, 30, 60, 100].find(x => x > sr.n) || sr.n + 50;
+  h.push({ id: "seri", ad: sonraki + " günlük seri", n: sr.n, hedef: sonraki });
+  const d = c.pet && c.pet.tur && !c.pet.olum ? petDurum(c, simdi) : null;
+  if (d && d.sonrakiEvre) { const e0 = EVRELER[d.evre].min, e1 = EVRELER[d.evre + 1].min; h.push({ id: "evre", ad: d.sonrakiEvre.ad + " olmak", n: d.gelisim - e0, hedef: e1 - e0 }); }
+  return h;
+}
 
 /* ---------- tarih yardımcıları (yerel saat; Türkiye tek saat dilimi) ---------- */
 export const gunAnahtar = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
