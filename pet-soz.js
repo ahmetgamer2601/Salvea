@@ -22,7 +22,8 @@ const SOZ = {
   evre: ["Bak, büyüyorum! Hepinize teşekkürler.", "Bir önceki gün olduğumdan daha büyüğüm, fark ettin mi?"],
   genel: ["Biri yalnız görünüyorsa ona selam ver, olur mu?", "Bir arkadaşına teşekkür et. Hayvanlar bunu çok sever.", "Birlikte daha güçlüyüz.", "Bugün kime yardım ettin?", "Sınıfımız dünyanın en iyisi. Gerçekten.", "Güzel bir söz söylemek hiçbir şeye mal olmaz.", "Kimseyi dışarıda bırakmayalım, değil mi?"],
   // yavru ve çocuk evrelerinde çekingen
-  cekingen: ["Ş-şey… merhaba…", "Biraz utanıyorum. Yavaş ol lütfen.", "Sen iyi birisin, değil mi?", "(Gözlerini kapatıp saklanıyor.)", "Çok yaklaşma… ama gitme de."],
+  cekingen: ["Ş-şey… merhaba…", "Biraz utanıyorum. Yavaş ol lütfen.", "Sen iyi birisin, değil mi?", "Çok yaklaşma… ama gitme de."],
+  cekingenTepki: ["Ş-şey… merhaba…", "Biraz utanıyorum. Yavaş ol lütfen.", "Sen iyi birisin, değil mi?", "(Gözlerini kapatıp saklanıyor.)", "Çok yaklaşma… ama gitme de."],   // yalnızca dokunma tepkisinde; sahne yönergesi içerir
   guven: ["Seni sevmeye başladım.", "Artık senden korkmuyorum. Biraz.", "Sen geldiğinde kuyruğum kendiliğinden sallanıyor."],
   okşa: ["Hihi, gıdıklanıyorum!", "Bir daha!", "Çok güzel hissettiriyor.", "Mırr… yani, cik cik… yani, hihi."],
   yem: ["Nam nam nam!", "Çok güzel! Teşekkürler {ad}!", "Tam da ihtiyacım olan buydu."],
@@ -60,7 +61,7 @@ export function dokunTepkisi(d, dokunma, x = {}, r = Math.random) {
   const v = { ad: x.ad || "" }, evre = d ? d.evre : 2;
   if (d && d.mod === "secim") return { tur: "yumurta", soz: doldur(sec(SOZ.yumurta, r), v) };
   const cekingen = evre <= 2 && dokunma < (evre === 1 ? 4 : 2) && r() < (evre === 1 ? 0.85 : 0.5);
-  if (cekingen) return { tur: "cekingen", soz: doldur(sec(SOZ.cekingen, r), v) };
+  if (cekingen) return { tur: "cekingen", soz: doldur(sec(SOZ.cekingenTepki, r), v) };
   return { tur: "oksa", soz: doldur(sec(dokunma >= 4 ? SOZ.okşa : SOZ.okşa.concat(SOZ.guven), r), v) };
 }
 export const eylemSozu = (tur, x = {}, r = Math.random) => doldur(sec(SOZ[tur] || SOZ.genel, r), { ad: x.ad || "", es: x.es || "arkadaşın" });
