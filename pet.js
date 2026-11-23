@@ -3,7 +3,7 @@
 import { db } from "./firebase.js";
 import { doc, runTransaction, updateDoc } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 import { env, envYama } from "./ayar.js";
-import { SABIT, HAYVANLAR, gunAnahtar, gunEkle, gerekSayisi, ogrenciListe, isimTemizle, oyKarari, bugunGorevler, yeniPet, gunuKapat, otoSecim, dondurulabilir, camurDurumu, camurAdimim } from "./petmantik.js";
+import { SABIT, HAYVANLAR, gunAnahtar, gunEkle, gerekSayisi, ogrenciListe, siraListesi, isimTemizle, oyKarari, bugunGorevler, yeniPet, gunuKapat, otoSecim, dondurulabilir, camurDurumu, camurAdimim } from "./petmantik.js";
 
 const ref = id => doc(db, "sohbetler", id);
 const bugun = () => gunAnahtar(new Date());
@@ -51,8 +51,11 @@ async function kendiListeye(c, alan, kayit, uid) {
   const l = ((c.pet && c.pet[alan]) || {})[uid] || []; if (l.includes(kayit)) return false;
   await updateDoc(ref(c.id), { ["pet." + alan + "." + uid]: [...l.slice(-13), kayit] }); return true;
 }
-export async function besle(c, tur, uid) {   // tur: "m" (mama) | "s" (su)
+export async function besle(c, tur, uid, saat = new Date().getHours()) {   // tur: "m" (mama) | "s" (su)
   const p = c.pet; if (!p || !p.tur || p.olum) throw new Error("Hayvan şu an beslenemez.");
+  // Önce o gün sırası gelen arkadaşlar beslesin; saat 12'den sonra herkes katılabilir
+  if (ogrenciListe(c).includes(uid) && saat < SABIT.SIRA_SAATI && !siraListesi(c, bugun()).includes(uid)) throw new Error("Önce sırası gelen arkadaşların besleme şansı. Saat " + SABIT.SIRA_SAATI + "'den sonra sen de katılabilirsin.");
+  if (((p.bes || {})[uid] || []).includes(bugun() + tur)) return { zatenVar: true };   // bugün zaten verdiyse çantaya bakma
   const k = tur === "m" ? "mama" : "su"; if (env()[k] < 1) throw new Error("Önce " + k + " kazanmalısın. Görevleri tamamlayınca kazanırsın.");
   const yazildi = await kendiListeye(c, "bes", bugun() + tur, uid);
   if (!yazildi) return { zatenVar: true };
@@ -94,12 +97,9 @@ export async function gorevOdulu(uid, kanitId) {
   await envYama(uid, { mama: SABIT.GOREV_MAMA });
   try { localStorage.setItem(k, JSON.stringify([...liste.slice(-40), kanitId])); } catch (_) {} return true;
 }
-// İyilik görevi (yan görev): gün başına 3 görev, her biri bir kez. Yapıldı bilgisi cihazda tutulur; ödül çantaya yazılır.
-export const yanGorevKey = (uid, gun) => "salvea_yg_" + uid + "_" + gun;
-export function yanGorevYapilanlar(uid, gun) { try { return JSON.parse(localStorage.getItem(yanGorevKey(uid, gun)) || "[]"); } catch (_) { return []; } }
-export async function yanGorevYap(uid, gorevId) {
-  const gun = bugun(), g = bugunGorevler(uid, gun).find(x => x.id === gorevId); if (!g) throw new Error("Bu görev bugün sana verilmedi.");
-  const yap = yanGorevYapilanlar(uid, gun); if (yap.includes(gorevId)) return { zatenVar: true };
-  try { localStorage.setItem(yanGorevKey(uid, gun), JSON.stringify([...yap, gorevId])); } catch (_) {}
-  await envYama(uid, { [g.tur]: 1 }); return { ok: true, tur: g.tur };
+
+// Keşfet'i sonuna kadar gezen: günde 1 mama (uygulamada geçirilen zamanı artırır). Gün bilgisi çantada (kd) tutulur, cihaz değişse de bir kez.
+export async function kesfetOdulu(uid) {
+  const bk = bugun(); if (env().kd === bk) return false;
+  await envYama(uid, { mama: SABIT.KESFET_MAMA }, { kd: bk }); return true;
 }
