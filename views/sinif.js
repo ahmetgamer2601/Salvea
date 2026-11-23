@@ -1,6 +1,7 @@
 // Görünüm: Sınıfım. Öğrenci: öğretmenler ve sınıf sohbeti. Öğretmen: sınıf yönetimi, onaylar, otomatik sorular, bildirilen mesajlar.
 import { db } from "../firebase.js";
 import { sinifIslem, kapsama, hazir } from "../push.js";
+import { herkesIcinTemizle } from "../sohbet-sil.js";
 import { collection, query, where, getDocs, getDoc, doc, updateDoc, writeBatch } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 export const html = `<header class="top"><div class="tile"><img src="logo.png" alt="Salvea"></div><div><b id="hi">Sınıfım</b><span id="sc"></span></div></header><div id="app"></div>`;
 export const max = "760px";
@@ -41,6 +42,9 @@ export default async function mount(ctx) {
       sol.append(el("b", "", "Sınıf sohbetine otomatik soru ve etkinlik"), el("small", "", "Hafta içi 15:00-19:00 arasında geniş bir havuzdan eğlenceli sorular, mini etkinlikler ve quizler gönderilir.")); ay.append(sol, sw); k.append(ay, sik);
       const isl = el("div", "setbtns"), dugme = (t, f, g) => { const b = el("button", "btn sm" + (g ? " ghost" : ""), t); b.type = "button"; b.onclick = async () => { b.disabled = true; try { await f(); } catch (e) { toast(e.message || "İşlem başarısız."); } b.disabled = false; }; isl.append(b); };
       dugme("Sınıf sohbetini kur / güncelle", async () => { const r = await sinifIslem("sinifSohbet", s.id); if (r.hata) throw new Error(r.hata); toast("Sınıf sohbeti hazır: " + r.uye + " üye.", true); });
+      { let emin = false; const b2 = el("button", "btn sm ghost", "Sınıf sohbetini temizle (deneme mesajları)"); b2.type = "button"; b2.onclick = async () => {
+        if (!emin) { emin = true; b2.textContent = "Emin misin? Herkes için kalıcı silinir. Tekrar bas"; setTimeout(() => { emin = false; b2.textContent = "Sınıf sohbetini temizle (deneme mesajları)"; }, 4500); return; }
+        b2.disabled = true; try { const n = await herkesIcinTemizle("sinif_" + s.id, k => { b2.textContent = k + " mesaj silindi…"; }); toast(n + " mesaj herkes için silindi.", true); } catch (e) { toast("Silinemedi: " + (e.code || e.message)); } b2.disabled = false; emin = false; b2.textContent = "Sınıf sohbetini temizle (deneme mesajları)"; }; isl.append(b2); }
       dugme("Şimdi bir soru gönder", async () => { const r = await sinifIslem("soruGonder", s.id); if (r.hata) throw new Error(r.hata); toast("Soru sınıf sohbetine gönderildi (" + r.etiket + ").", true); }, true);
       isl.append(link("Sohbeti aç", "sohbet.html?c=" + encodeURIComponent("sinif_" + s.id))); k.append(isl, el("h3", "sn-alt", "Öğrenciler"));
       const bek = roster.filter(o => o.sinifOnay !== true);
