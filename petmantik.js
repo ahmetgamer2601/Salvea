@@ -1,7 +1,7 @@
 // Sınıf evcil hayvanı ve sohbet serisi: SAF mantık. Hiçbir dış bağımlılığı yok (tarayıcıda da node'da da çalışır, test edilebilir).
 // Durum, sınıf sohbet belgesindeki `pet` alanında durur; zaten dinlenen belge olduğu için ek okuma doğurmaz.
 
-export const SABIT = { GOREV_MAMA: 2, YAN_GOREV_SAYI: 3, SECIM_GUN: 3, ACLIK_OLUM: 3, DEGISTIR_MAMA: 5, DONDUR_AYLIK: 2, GUNLUK_ODUL_SU: 1, TEMIZLE_ODUL_MAMA: 1 };
+export const SABIT = { GOREV_MAMA: 3, KESFET_MAMA: 1, SIRA_SAATI: 12, YAN_GOREV_SAYI: 3, SECIM_GUN: 3, ACLIK_OLUM: 3, DEGISTIR_MAMA: 5, DONDUR_AYLIK: 2, GUNLUK_ODUL_SU: 1, TEMIZLE_ODUL_MAMA: 1 };
 
 export const HAYVANLAR = [
   { id: "civciv", ad: "Civciv", renk: "#f5c542", ozellik: "Meraklı ve pofuduk", isimler: ["Pofuduk", "Limon", "Mısır", "Cıvıl", "Sarı"] },
