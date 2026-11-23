@@ -89,7 +89,7 @@ export default async function mount(ctx) {
             b.set(doc(db, "gorevKanitlari", id), meta);
             b.set(doc(db, "kanitFotolari", id), { okulId: me.okulId, foto, silinmeTs: st, ts: serverTimestamp() });
             await b.commit();
-            const odul = await gorevOdulu(me.uid, id).catch(() => false); bildir("kanitGonder", { id }); fc[id] = Promise.resolve(foto); kn = kn.filter(x => x.atamaId !== g.id).concat({ id, ...meta }); show("Kanıtın öğretmene gönderildi." + (odul ? " Hayvanın için +2 mama kazandın!" : ""), true); draw(); });
+            const odul = await gorevOdulu(me.uid, id).catch(() => false); bildir("kanitGonder", { id }); fc[id] = Promise.resolve(foto); kn = kn.filter(x => x.atamaId !== g.id).concat({ id, ...meta }); show("Kanıtın öğretmene gönderildi." + (odul ? " Takım görevi: hayvanın için +3 mama kazandın!" : ""), true); draw(); });
           c.append(lb, f, nt, sk, go);
         }
         parts.push(c);
