@@ -25,15 +25,15 @@ export async function ayarYukle(uid) {
   kim = uid; let a = {};
   try { a = JSON.parse(localStorage.getItem("salvea_ayar_" + uid) || "{}"); } catch (_) {}
   onbellek = { ...VARSAYILAN, ...a };
-  try { const s = await getDoc(doc(db, "ayarlar", uid)); if (s.exists()) { const d = s.data(); onbellek = { ...VARSAYILAN, sohbetTema: d.sohbetTema, balonRenk: d.balonRenk, okunduGizle: d.okunduGizle === true, rehber: +d.rehber || 0, ...(d.env ? { env: { mama: +d.env.mama || 0, su: +d.env.su || 0, odul: String(d.env.odul || "") } } : {}) }; localStorage.setItem("salvea_ayar_" + uid, JSON.stringify(onbellek)); } } catch (_) {}
+  try { const s = await getDoc(doc(db, "ayarlar", uid)); if (s.exists()) { const d = s.data(); onbellek = { ...VARSAYILAN, sohbetTema: d.sohbetTema, balonRenk: d.balonRenk, okunduGizle: d.okunduGizle === true, rehber: +d.rehber || 0, ...(d.env ? { env: { mama: +d.env.mama || 0, su: +d.env.su || 0, odul: String(d.env.odul || ""), kd: String(d.env.kd || ""), cz: String(d.env.cz || "") } } : {}) }; localStorage.setItem("salvea_ayar_" + uid, JSON.stringify(onbellek)); } } catch (_) {}
   return onbellek;
 }
 // Evcil hayvan çantası (mama / su). Ayar belgesinde durur: oturum başına zaten okunan belge, ek okuma yok.
-export const ENV0 = { mama: 3, su: 3, odul: "" };   // yeni öğrenciye başlangıç hediyesi
+export const ENV0 = { mama: 1, su: 1, odul: "", kd: "", cz: "" };   // yeni öğrenciye küçük başlangıç hediyesi; asıl kazanç takım görevleri ve Keşfet
 export const env = () => ({ ...ENV0, ...((onbellek && onbellek.env) || {}) });
 export async function envYama(uid, fark = {}, ek = {}) {
   const e = env(); for (const k of ["mama", "su"]) if (fark[k]) e[k] = Math.max(0, Math.min(999, e[k] + fark[k]));
-  Object.assign(e, ek); await ayarKaydet(uid, { env: { mama: e.mama, su: e.su, odul: String(e.odul || "") } });
+  Object.assign(e, ek); await ayarKaydet(uid, { env: { mama: e.mama, su: e.su, odul: String(e.odul || ""), kd: String(e.kd || ""), cz: String(e.cz || "") } });
 }
 export async function ayarKaydet(uid, yama) {
   onbellek = { ...ayar(), ...yama };
