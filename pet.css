@@ -205,3 +205,12 @@ body.pe-kilit{overflow:hidden}
 @keyframes pyZipla{0%{transform:none}30%{transform:translateY(-22px) scale(.96,1.06)}55%{transform:translateY(0) scale(1.08,.92)}100%{transform:none}}@keyframes pyHapsir{0%{transform:none}25%{transform:scale(.92,1.08) translateY(-4px)}40%{transform:scale(1.12,.88)}60%{transform:translateX(-5px) scale(1.04,.96)}100%{transform:none}}
 @media(prefers-reduced-motion:reduce){.py,.py *{animation:none!important;transition:none!important}}
 .rh-yuva{position:absolute;left:0;right:0;bottom:6px;display:grid;justify-items:center;gap:8px;opacity:0;transition:opacity .35s;pointer-events:none;font-size:.84rem;color:#6d7a72;text-align:center}.rh-yuva i{width:104px;height:14px;border-radius:50%;background:rgba(0,0,0,.09)}.rh-maskot.gezide .rh-yuva{opacity:1}
+
+/* ================= hayvan sohbet ekranında laf atar ================= */
+.cpet-balon{position:fixed;z-index:80;border:0;text-align:center;background:#fff;color:#27382f;border-radius:16px;padding:9px 12px;font:inherit;font-size:.84rem;font-weight:600;line-height:1.35;box-shadow:0 8px 24px rgba(0,0,0,.25);opacity:0;transform:translateY(-6px) scale(.94);transition:opacity .25s,transform .3s cubic-bezier(.2,1.3,.4,1);cursor:pointer}
+.cpet-balon.goster{opacity:1;transform:none}.cpet-balon::before{content:"";position:absolute;top:-6px;left:var(--ok,50%);width:12px;height:12px;background:#fff;transform:translateX(-50%) rotate(45deg);border-radius:3px}
+.cpet.konusuyor{animation:cpetHop .7s cubic-bezier(.3,1.5,.5,1)}@keyframes cpetHop{0%{transform:none}30%{transform:translateY(-6px) scale(1.06)}60%{transform:translateY(0) scale(.96,1.04)}100%{transform:none}}
+.fmama{margin:8px 0 0;padding:8px 12px;border-radius:12px;background:#fdeacc;color:#8a4f10;font-size:.86rem;font-weight:600}
+.pe-fikir{background:#e7f3e9;border-radius:18px;padding:12px 14px;display:grid;gap:4px}.pe-fikir small{font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:#4f7a58}.pe-fikir p{margin:0;font-size:.92rem;font-weight:600;line-height:1.4;color:#27402d}
+.pe-kazan{margin:0;padding:12px 14px;border-radius:16px;background:var(--mist);font-size:.82rem;line-height:1.55;color:#5b6b61}.pe-kazan b{color:var(--ink)}
+.pe-sira-not{margin:0;padding:9px 12px;border-radius:12px;background:#fff1c9;color:#7a5a12;font-size:.82rem;line-height:1.4}
