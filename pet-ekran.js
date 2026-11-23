@@ -1,9 +1,9 @@
 // Sınıf hayvanı penceresi (TikTok tarzı tam ekran alt sayfa). Canlı sahne, seçim, besleme, çamur temizliği, seri ve bakıcı listesi.
 // Veri ek okuma doğurmaz: getChat() zaten dinlenen sınıf sohbet belgesini döndürür; yenileme "salvea-sohbetler" olayıyla gelir.
 import { petSvg, yumurtaSvg, yildizSvg } from "./pet-cizim.js";
-import { petDurum, HAYVANLAR, SABIT, gunAnahtar, seriHesapla, dondurulabilir, camurAdimim, oySayim, oyAyir, isimTemizle, bakimEkibi, bugunGorevler, hedefler } from "./petmantik.js";
+import { petDurum, HAYVANLAR, SABIT, gunAnahtar, seriHesapla, dondurulabilir, camurAdimim, oySayim, oyAyir, isimTemizle, bakimEkibi, bugunGorevler, hedefler, ogrenciListe } from "./petmantik.js";
 import { sozSec, dokunTepkisi, eylemSozu } from "./pet-soz.js";
-import { petSec, oyVer, besle, temizle, yeniYumurta, seriDondur, yanGorevYap, yanGorevYapilanlar } from "./pet.js";
+import { petSec, oyVer, besle, temizle, yeniYumurta, seriDondur } from "./pet.js";
 import { maskotTur, maskotSec } from "./pet-rehber.js";
 import { miniKafa, alevSvg } from "./pet-cizim.js";
 import { env } from "./ayar.js";
@@ -144,17 +144,11 @@ export function petEkraniAc({ chatId, me, getChat, onKapat }) {
     hedefler(c).forEach(h => { const sat = el("div", "pe-hs"), ust2 = el("div", "pe-hs-u"); ust2.append(el("small", "", "Sınıf hedefi: " + h.ad), el("b", "", h.n + "/" + h.hedef)); sat.append(ust2, bar(h.n, h.hedef, "hdf")); kutu.append(sat); });
     return kutu;
   }
-  function gorevlerCiz() {
-    const kutu = el("div", "pe-yg"), bk = gunAnahtar(new Date()), liste = bugunGorevler(me.uid, bk), yapilan = yanGorevYapilanlar(me.uid, bk);
-    kutu.append(el("h3", "", "Bugünkü iyilik görevlerin"), el("p", "pe-alt", "Birbirinize iyi davranmak hayvanınızı da mutlu eder. Yaptıkça mama ve su kazanırsın. Dürüstçe işaretle: amaç sınıfça birbirimize yaklaşmak."));
-    liste.forEach(g => {
-      const yap = yapilan.includes(g.id), sat = el("div", "pe-ygs" + (yap ? " tamam" : "")), ic = el("span", "pe-yg-ik " + g.tur); ic.innerHTML = ik(g.tur === "mama" ? "mama" : "su");
-      const m = el("div", "pe-yg-m"); m.append(el("small", "", g.kat), el("span", "", g.metin));
-      const b = el("button", "pe-yg-btn", yap ? "Yapıldı ✓" : "Yaptım  +1"); b.type = "button"; b.disabled = yap;
-      b.onclick = async () => { b.disabled = true; try { const r = await yanGorevYap(me.uid, g.id); if (r.ok) { kalpler(4); titret(); toast("+1 " + g.tur + " kazandın. Böyle devam!", true); konus(eylemSozu("genel", { ad })); } } catch (er) { toast(er.message || "Olmadı."); b.disabled = false; } finally { panelCiz(); } };
-      sat.append(ic, m, b); kutu.append(sat);
-    });
-    return kutu;
+  function fikirCiz() {   // ödülsüz "günün iyilik fikri": sınıfça birbirimize yaklaşmak için küçük bir öneri
+    const g = bugunGorevler(me.uid, gunAnahtar(new Date()))[0], k = el("div", "pe-fikir"); k.append(el("small", "", "Günün iyilik fikri · " + g.kat), el("p", "", g.metin)); return k;
+  }
+  function kazanCiz() {
+    const k = el("p", "pe-kazan"); k.innerHTML = "<b>Mama ve su nasıl kazanılır?</b><br>Takım görevi kanıtı: <b>3 mama</b> · Keşfet’i sonuna kadar gezmek: <b>1 mama</b> (günde bir) · Çamuru temizlemek: <b>1 mama</b> · Günün ilk sınıf mesajı: <b>1 su</b>"; return k;
   }
   function seciciCiz(d, degistirMi) {
     const k = el("div", "pe-sec");
@@ -215,13 +209,15 @@ export function petEkraniAc({ chatId, me, getChat, onKapat }) {
       if (d.camur.var) k.append(camurKart(d, c));
       // düğmeler
       const eylem = el("div", "pe-eylem");
-      const mk = (t2, y, kalan, gonder, verdi) => { const b = el("button", "pe-btn " + t2 + (verdi ? " tamam" : ""), ""); b.type = "button"; b.innerHTML = ik(t2) + "<span>" + (verdi ? y + " verdin" : y + " ver") + "</span><small>" + (verdi ? "✓" : kalan + " var") + "</small>"; b.disabled = verdi; b.onclick = gonder; return b; };
+      const bekletildi = ogrenciListe(c).includes(me.uid) && new Date().getHours() < SABIT.SIRA_SAATI && !d.sira.includes(me.uid);   // önce sırası gelenler beslesin
+      const mk = (t2, y, kalan, gonder, verdi) => { const b = el("button", "pe-btn " + t2 + (verdi ? " tamam" : ""), ""); b.type = "button"; b.innerHTML = ik(t2) + "<span>" + (verdi ? y + " verdin" : y + " ver") + "</span><small>" + (verdi ? "✓" : bekletildi ? SABIT.SIRA_SAATI + ":00'den sonra" : kalan + " var") + "</small>"; b.disabled = verdi || bekletildi; b.onclick = gonder; return b; };
       const yem = async t2 => { if (islemde) return; islemde = true; try { const r = await besle(getChat(), t2, me.uid); if (r.zatenVar) toast("Bugün zaten verdin."); else { yemAnim(t2); } } catch (er) { toast(er.message || "Olmadı."); } finally { islemde = false; panelCiz(); } };
       eylem.append(mk("mama", "Mama", e.mama, () => yem("m"), benVerdi("m")), mk("su", "Su", e.su, () => yem("s"), benVerdi("s")));
       k.append(eylem);
-      k.append(el("p", "pe-canta", "Çantan: " + e.mama + " mama · " + e.su + " su. Günün ilk sınıf mesajı 1 su, çamuru temizlemek 1 mama kazandırır."));
+      if (bekletildi) k.append(el("p", "pe-sira-not", "Önce sırası gelen arkadaşlar besler: " + d.sira.map(u => ad1(c, u)).join(", ") + ". Saat " + SABIT.SIRA_SAATI + "’den sonra herkes katılabilir."));
+      k.append(el("p", "pe-canta", "Çantan: " + e.mama + " mama · " + e.su + " su"));
     }
-    k.append(gorevlerCiz());
+    k.append(fikirCiz()); k.append(kazanCiz());
     k.append(ekipCiz(d, c));
     if (d.degistirilebilir && d.evre >= 0) { const l = el("button", "pe-link", "Hayvanı değiştir (bir kez, " + SABIT.DEGISTIR_MAMA + " mama)"); l.type = "button"; l.onclick = () => { mod = "degistir"; secim = null; yazilan = ""; panelCiz(); }; k.append(l); }
     return k;
@@ -290,7 +286,7 @@ export function petEkraniAc({ chatId, me, getChat, onKapat }) {
       a.push({ hedef: q(".pe-btn.mama"), metin: () => "Mama vermek için buraya bas. Mama ve suyu görev yaparak ve sohbet ederek kazanırsın." });
       a.push({ hedef: q(".pe-btn.su"), metin: () => "Su da aynı şekilde. Bugün sıra sende olabilir, haberin olsun!" });
       a.push({ hedef: q(".pe-camur"), metin: () => "Hayvan arada çamura girer. İki kişi birlikte temizler: biri köpükler, diğeri durular. Konuşup anlaşın!" });
-      a.push({ hedef: q(".pe-yg"), metin: () => "Her gün sana üç iyilik görevi düşer: teşekkür etmek, yardım teklif etmek gibi. Yaptıkça mama ve su kazanırsın." });
+      a.push({ hedef: q(".pe-kazan"), metin: () => "Mama kolay kazanılmaz: en çok takım görevlerini yapınca (3 mama), Keşfet’i sonuna kadar gezince ve çamuru temizleyince kazanırsın. Önce o gün sırası gelen arkadaşlar besler." });
     }
     a.push({ hedef: q(".pe-ekip-ac"), metin: () => "Burada kimin sırası olduğunu ve kimlerin ilgilendiğini görürsün." });
     a.push({ hedef: () => yardimB, metin: m => "Beni tekrar görmek istersen buraya bas. Hayvanınıza iyi bakın, hoşça kalın!" });
