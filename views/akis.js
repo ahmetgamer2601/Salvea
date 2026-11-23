@@ -11,6 +11,7 @@ export const html = `<header class="top"><div class="tile"><img src="logo.png" a
 <div class="feed" id="feed" tabindex="0" aria-label="Günün kartları"></div>`;
 export const max = "680px";
 
+import { kesfetOdulu } from "../pet.js";
 export default async function mount(ctx) {
   const me = ctx.me;
   const $ = ctx.$, student = me.role === "student";
@@ -126,5 +127,10 @@ export default async function mount(ctx) {
   ILK.forEach(k => { const c = MK[k](); if (c) cards.push(c); });
   cards.push(bitis(), bos);
   $("feed").replaceChildren(...cards); chips();
+  // Sonuna kadar gelene günde 1 mama: son karta ulaşıp en az 25 sn gezmiş olmalı
+  { const bit = $("feed").querySelector(".c-bitis"), t0 = Date.now(); let gorundu = false, alindi = false;
+    if (bit && "IntersectionObserver" in window) { const io = new IntersectionObserver(es => { gorundu = es.some(e => e.isIntersecting); }, { root: $("feed"), threshold: [0.6] }); io.observe(bit); ctx.leave(() => io.disconnect());
+      const kontrol = async () => { if (alindi || !gorundu || Date.now() - t0 < 25000) return; alindi = true; try { if (await kesfetOdulu(me.uid)) { const m = el("p", "fmama", "Keşfet'i sonuna kadar gezdin: sınıf hayvanın için +1 mama kazandın!"); bit.querySelector("h2") ? bit.querySelector("h2").after(m) : bit.append(m); S.show("Keşfet'i sonuna kadar gezdin! +1 mama kazandın."); } } catch (_) {} };
+      ctx.every(kontrol, 3000); } }
   ctx.on(document, "keydown", e => { if (/INPUT|TEXTAREA|SELECT|BUTTON/.test(e.target.tagName)) return; const f = $("feed"); if (e.key === "ArrowDown") { e.preventDefault(); f.scrollBy({ top: f.clientHeight, behavior: "smooth" }); } if (e.key === "ArrowUp") { e.preventDefault(); f.scrollBy({ top: -f.clientHeight, behavior: "smooth" }); } });
 }
