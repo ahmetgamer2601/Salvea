@@ -251,6 +251,14 @@ html[data-tema="koyu"] .pe-yg-btn:disabled{background:#323e35;color:#bac9c0}
 html[data-tema="koyu"] .py-balon{background:#1e2421;color:#dde8e2}
 html[data-tema="koyu"] .py-balon::after{background:#1e2421}
 html[data-tema="koyu"] .rh-yuva{color:#b1c2b8}
+html[data-tema="koyu"] .cpet-balon{background:#1e2421;color:#dde8e2}
+html[data-tema="koyu"] .cpet-balon::before{background:#1e2421}
+html[data-tema="koyu"] .fmama{background:#3f311b;color:#e6d1bc}
+html[data-tema="koyu"] .pe-fikir{background:#1e3422}
+html[data-tema="koyu"] .pe-fikir small{color:#b6d0bb}
+html[data-tema="koyu"] .pe-fikir p{color:#d9e8dc}
+html[data-tema="koyu"] .pe-kazan{color:#bccbc2}
+html[data-tema="koyu"] .pe-sira-not{background:#3f361b;color:#e8dcc2}
 
 /* ---- elle eklenen düzeltmeler ---- */
 html[data-tema="koyu"] body{background-color:var(--cream);background-image:none}
