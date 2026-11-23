@@ -3,6 +3,8 @@ import { db } from "../firebase.js";
 import { resizeFit } from "../foto.js";
 import { gunAnahtar, seriHesapla, petDurum, camurAdimim } from "../petmantik.js";
 import { petEkraniAc } from "../pet-ekran.js";
+import { sozSec } from "../pet-soz.js";
+import { herkesIcinTemizle } from "../sohbet-sil.js";
 import { miniKafa, alevSvg } from "../pet-cizim.js";
 import { petBakim, gunlukOdul } from "../pet.js";
 import { SORULAR } from "../veri.js";
@@ -74,7 +76,7 @@ const LIM = 40;   // açılışta okunan mesaj sayısı (eskiden 120)
   const engelVar = c => !!(c && c.tur === "dm" && c.engel && Object.keys(c.engel).length);   // öğrenci-öğrenci sohbette taraflardan biri engellediyse
 const closed = c => c.kapali === true || (c.bitisTs && T(c.bitisTs) < Date.now()) || engelVar(c);
   const unread = c => c.son && c.son.uid !== me.uid && T(c.sonTs) > Math.max(T(c.okundu && c.okundu[me.uid]), yerelOkundu(me.uid, c.id));
-  const gizliMs = c => T(c.gizli && c.gizli[me.uid]);   // "geçmişi temizle / sohbeti sil": yalnızca benim ekranımı etkiler
+  const gizliMs = c => Math.max(T(c.gizli && c.gizli[me.uid]), T(c.temizTs));   // benim temizlemem ya da öğretmenin herkes için temizlemesi   // "geçmişi temizle / sohbeti sil": yalnızca benim ekranımı etkiler
   const ref = () => doc(db, "sohbetler", curId);
   const durRef = () => doc(db, "sohbetler", curId, "durum", "anlik");   // çevrimiçi/yazıyor bilgisi ayrı belgede: sohbet listesini ve rozetleri gereksiz tetiklemez
   const profilGit = uid => { kapatSheet(); ctx.go("kisi", "u=" + encodeURIComponent(uid)); };
@@ -96,6 +98,20 @@ const closed = c => c.kapali === true || (c.bitisTs && T(c.bitisTs) < Date.now()
   function gunlerYama(c) { const bk = gunAnahtar(new Date()), onceki = (c.gunler || {})[me.uid] || []; return onceki.includes(bk) ? {} : { ["gunler." + me.uid]: [...onceki.slice(-34), bk] }; }
   function seriChip(n, tehlike) { const s = el("span", "seri-chip" + (tehlike ? " tehlike" : "") + (n >= 30 ? " b3" : n >= 7 ? " b2" : "")); s.innerHTML = alevSvg(n); s.append(String(n)); s.title = n + " günlük seri" + (tehlike ? ". Bugün yazarsan sürer!" : ""); return s; }
   function petAc(id) { petEkraniAc({ chatId: id, me: { uid: me.uid, ad: String(me.takmaAd || me.ad || "").split(" ")[0] }, getChat: () => chats[id] }); }
+  // Hayvan paneli açılmadan da arada laf atar (başlıktaki küçük hayvanın altında kısa bir balon)
+  let cpetSon = 0;
+  function cpetTik(zorla) {
+    if (document.hidden || document.querySelector(".pe-ov,.hr-ov,.rh")) return; const c = C(); if (!c || c.tur !== "sinif" || !c.pet || !c.pet.tur || c.pet.olum) return;
+    if (!zorla && (Date.now() - cpetSon < 150000 || Math.random() > 0.2)) return;
+    const gk = "salvea_csoz_" + gunAnahtar(new Date()); let n = 0; try { n = +localStorage.getItem(gk) || 0; } catch (_) {} if (!zorla && n >= 5) return;
+    const d = petDurum(c), chip = document.querySelector("#chat .cpet"); if (!chip || d.mod !== "yasiyor" || d.evre < 1) return; cpetSon = Date.now(); try { localStorage.setItem(gk, String(n + 1)); } catch (_) {}
+    const sr = seriHesapla(c), m = sozSec(d, { ad: String(me.takmaAd || me.ad || "").split(" ")[0], saat: new Date().getHours(), seri: sr.n, siraBende: d.sira.includes(me.uid) });
+    document.querySelectorAll(".cpet-balon").forEach(x => x.remove()); const b = el("button", "cpet-balon", m), r = chip.getBoundingClientRect(); b.type = "button"; document.body.append(b);
+    const w = Math.min(220, innerWidth - 24); b.style.width = w + "px"; b.style.top = Math.round(r.bottom + 8) + "px"; const sol = Math.max(10, Math.min(innerWidth - w - 10, r.left + r.width / 2 - w / 2)); b.style.left = Math.round(sol) + "px"; b.style.setProperty("--ok", Math.round(r.left + r.width / 2 - sol) + "px");
+    chip.classList.remove("konusuyor"); void chip.offsetWidth; chip.classList.add("konusuyor"); requestAnimationFrame(() => b.classList.add("goster"));
+    b.onclick = () => { b.remove(); petAc(c.id); }; setTimeout(() => { b.classList.remove("goster"); setTimeout(() => b.remove(), 300); }, 5000);
+  }
+  window.__cpetTik = cpetTik; ctx.every(() => cpetTik(false), 20000); ctx.leave(() => document.querySelectorAll(".cpet-balon").forEach(x => x.remove()));
   function seriGoster(c) {
     const k = $("cseri"); if (!k) return; const sr = seriHesapla(c), oge = [], ac = e => { e.stopPropagation(); petAc(c.id); };
     if (c.tur === "sinif" && c.pet) {   // sınıf hayvanı: başlıkta küçük, dokununca tam pencere
@@ -206,6 +222,8 @@ const closed = c => c.kapali === true || (c.bitisTs && T(c.bitisTs) < Date.now()
       ...(c.tur === "dm" && c.ogrOgr && (!engelVar(c) || c.engel[me.uid]) ? [c.engel && c.engel[me.uid] ? satir("ban", "Engeli kaldır", "Tekrar mesajlaşabilirsiniz", () => engelle(c, false)) : satir("ban", "Engelle", "Birbirinize mesaj yazamazsınız. İstediğin zaman kaldırabilirsin.", () => onayla("Bu kişi engellensin mi?", "Siz birbirinize mesaj gönderemezsiniz. Engeli istediğin zaman kaldırabilirsin. Rahatsız edici bir mesaj varsa mesaja uzun basıp bildirmeyi de unutma.", () => engelle(c, true)), true)] : []),
       ...(c.tur === "sinif" ? [satir("cap", "Sınıf sayfası", "Öğretmenler ve ayarlar", () => ctx.go("sinif"))] : []),
       satir("trash", "Geçmişi temizle", "Yalnızca senin ekranından silinir", () => onayla("Geçmiş temizlensin mi?", "Bu sohbetteki eski mesajlar yalnızca senin ekranında gizlenir.", () => temizle(false))),
+      ...(c.tur === "takim" ? [satir("trash", "Sohbeti listemden kaldır", "Yalnızca senin listenden kalkar; yeni mesaj gelirse yeniden görünür", () => onayla("Sohbet listenden kaldırılsın mı?", "Bu takım sohbeti yalnızca senin listenden kalkar. Diğer üyeler etkilenmez.", () => temizle(true)), true)] : []),
+      ...(me.role === "teacher" && (c.tur === "sinif" || c.tur === "takim") ? [satir("trash", "Tüm geçmişi herkes için sil", "Bu sohbetteki bütün mesajlar kalıcı silinir", () => onayla("Tüm geçmiş herkes için silinsin mi?", "Bu sohbetteki bütün mesajlar KALICI olarak silinir ve geri getirilemez. Sınıfı yayına almadan önce deneme mesajlarını temizlemek için kullan.", () => herkesTemizle(c.id)), true)] : []),
       ...(c.tur === "dm" ? [satir("trash", "Sohbeti sil", "Listeden kaldırır; yeni mesaj gelirse yeniden görünür", () => onayla("Sohbet silinsin mi?", "Sohbet yalnızca senin listenden kaldırılır. Karşındaki kişi etkilenmez.", () => temizle(true)), true)] : []));
   };
   async function engelle(c, ac) {
@@ -217,6 +235,10 @@ const closed = c => c.kapali === true || (c.bitisTs && T(c.bitisTs) < Date.now()
   }
   function onayla(baslik, metin, f) {
     const evet = el("button", "btn", "Evet"), iptal = el("button", "btn ghost", "Vazgeç"), k = el("div", "onay"); evet.type = iptal.type = "button"; evet.onclick = () => { kapatSheet(); f(); }; iptal.onclick = kapatSheet; k.append(evet, iptal); acSheet(baslik, el("p", "bilgi", metin), k);
+  }
+  async function herkesTemizle(id) {
+    try { toast("Siliniyor…"); const n = await herkesIcinTemizle(id, k => toast(k + " mesaj silindi…")); tumM = new Map(); msgs = []; nodes.forEach(x => x.remove()); nodes = new Map(); lastDay = ""; $("msgs").replaceChildren(); toast(n + " mesaj herkes için silindi.", true); }
+    catch (e) { toast("Silinemedi: " + (e.code || e.message)); }
   }
   async function temizle(sohbetiKapat) {
     const id = curId; if (!id) return;
