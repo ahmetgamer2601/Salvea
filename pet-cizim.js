@@ -147,7 +147,7 @@ export function yumurtaSvg(tur, { kimlik = "e", catlak = 0 } = {}) {
 export const yildizSvg = () => `<svg class="pet-svg yildiz" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" aria-label="yıldız"><defs><radialGradient id="ygl"><stop offset="0" stop-color="#fff6c8"/><stop offset="1" stop-color="#ffd86a" stop-opacity="0"/></radialGradient></defs><circle class="pt-hale" cx="100" cy="100" r="78" fill="url(#ygl)"/><path class="pt-yild" d="M100 36l17 38 41 4-31 27 9 41-36-21-36 21 9-41-31-27 41-4z" fill="#ffd25a" stroke="#f2b233" stroke-width="3" stroke-linejoin="round"/></svg>`;
 // başlık/çip için sadece kafa (viewBox kırpılır)
 export function miniKafa(tur, evre = 2, kimlik = "m", yildiz = false) {
-  const s = yildiz ? yildizSvg() : evre <= 0 || !tur ? yumurtaSvg(tur, { kimlik }) : petSvg({ tur, evre, kimlik }), v = yildiz ? "30 30 140 140" : evre <= 0 || !tur ? "44 46 112 140" : "46 50 108 100";
+  const s = yildiz ? yildizSvg() : evre <= 0 || !tur ? yumurtaSvg(tur, { kimlik }) : petSvg({ tur, evre, kimlik }), v = yildiz ? "30 30 140 140" : evre <= 0 || !tur ? "44 46 112 140" : "46 " + Math.round(182 - 62 * S[Math.min(4, Math.max(1, evre))].s - 52) + " 108 104";
   return s.replace('viewBox="0 0 200 200"', `viewBox="${v}"`).replace('class="pet-svg', 'class="pet-svg mini');
 }
 
