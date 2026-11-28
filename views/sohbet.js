@@ -150,7 +150,9 @@ const closed = c => c.kapali === true || (c.bitisTs && T(c.bitisTs) < Date.now()
   }
   function renderList() {
     rozet();
-    const list = Object.values(chats).filter(c => !(c.tur === "dm" && gizliMs(c) && gizliMs(c) >= T(c.sonTs))).sort((a, b) => (T(b.sonTs) || T(b.olusturma)) - (T(a.sonTs) || T(a.olusturma)));
+    // Kendi "sil / listemden kaldır" tercihim: özel mesaj ve takım sohbetlerinde, yeni mesaj gelene kadar listeden kalkar (sınıf sohbeti hiç kalkmaz; öğretmenin herkes için temizlemesi listeyi etkilemez)
+    const benGizli = c => (c.tur === "dm" || c.tur === "takim") && T(c.gizli && c.gizli[me.uid]) && T(c.gizli[me.uid]) >= T(c.sonTs);
+    const list = Object.values(chats).filter(c => !benGizli(c)).sort((a, b) => (T(b.sonTs) || T(b.olusturma)) - (T(a.sonTs) || T(a.olusturma)));
     if (!list.length) return $("clist").replaceChildren(el("div", "emptym kucuk", "Henüz sohbetin yok. Artı düğmesiyle rehber öğretmenine yazabilirsin."));
     $("clist").replaceChildren(...list.map(c => {
       const b = el("button", "citem" + (c.id === curId ? " on" : "") + (unread(c) ? " un" : "")), mid = el("div", "cm"), nm = el("div", "t", title(c)), tm = el("div", "tm"), p = el("div", "p");
