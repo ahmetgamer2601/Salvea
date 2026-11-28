@@ -2,7 +2,7 @@
 // Yavruyken çekingendir (yaklaşınca kaçar, saklanır); büyüdükçe merak eder ve dokunduğun yere doğru gelir.
 // Veri ek okuma doğurmaz: nav.js'in zaten dinlediği sohbet listesinden gelir. Ayarlardan kapatılabilir.
 import { petSvg } from "./pet-cizim.js";
-import { petDurum, seriHesapla, gunAnahtar } from "./petmantik.js";
+import { petDurum, seriHesapla, gunAnahtar, giysiOf } from "./petmantik.js";
 import { sozSec } from "./pet-soz.js";
 import { petEkraniAc } from "./pet-ekran.js";
 
@@ -30,8 +30,8 @@ export function yoldasBaslat(me) {
     if (!chat) { if (!kok.hidden) gizleHemen(); return; } ciz();
   }
   function ciz() {
-    if (!dur || !dur.var || dur.mod !== "yasiyor") return; const kirli = !!(dur.camur && dur.camur.var && !dur.camur.adimA), uyku = gece(), k = [chat.id, dur.tur.id, dur.evre, dur.ruh, uyku ? 1 : 0, kirli ? 1 : 0].join("|");
-    if (k === anahtar) return; anahtar = k; hayvan.innerHTML = petSvg({ tur: dur.tur.id, evre: Math.max(1, dur.evre), ruh: dur.ruh, uyku, kirli, kimlik: "py" }); hayvan.setAttribute("aria-label", (dur.ad || "Sınıf hayvanı") + " ile oyna");
+    if (!dur || !dur.var || dur.mod !== "yasiyor") return; const kirli = !!(dur.camur && dur.camur.var && !dur.camur.adimA), uyku = gece(), k = [chat.id, dur.tur.id, dur.evre, dur.ruh, uyku ? 1 : 0, kirli ? 1 : 0, (giysiOf(chat, dur.evre) || {}).id].join("|");
+    if (k === anahtar) return; anahtar = k; hayvan.innerHTML = petSvg({ tur: dur.tur.id, evre: Math.max(1, dur.evre), ruh: dur.ruh, uyku, kirli, giysi: (giysiOf(chat, dur.evre) || {}).id, kimlik: "py" }); hayvan.setAttribute("aria-label", (dur.ad || "Sınıf hayvanı") + " ile oyna");
   }
 
   /* ---------- hareket ---------- */
