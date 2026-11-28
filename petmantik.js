@@ -22,6 +22,16 @@ export const EVRELER = [
 
 export function hash(s) { let h = 2166136261; s = String(s); for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
 
+/* ---------- kıyafetler: her evrede farklı; sınıfa göre sabit seçilir. Kazanılmaz/satın alınmaz (mama ekonomisiyle ilgisi yok): büyüdükçe kendiliğinden gelir ---------- */
+export const GIYSILER = {
+  1: [{ id: "bere", ad: "kırmızı bere" }, { id: "onluk", ad: "mavi önlük" }, { id: "fiyonk", ad: "pembe fiyonk" }],
+  2: [{ id: "atki", ad: "çizgili atkı" }, { id: "kasket", ad: "mavi kasket" }, { id: "gozluk", ad: "yuvarlak gözlük" }],
+  3: [{ id: "pelerin", ad: "kahraman pelerini" }, { id: "gunes", ad: "güneş gözlüğü" }, { id: "kulaklik", ad: "kulaklık" }],
+  4: [{ id: "tac", ad: "altın taç" }, { id: "papyon", ad: "papyon" }, { id: "madalya", ad: "madalya" }],
+};
+export const giysiOf = (c, evre) => { const l = GIYSILER[evre]; return l ? l[hash((c.id || "") + ":giysi:" + evre + ":" + ((c.pet && c.pet.seriNo) || 1)) % l.length] : null; };
+export const giysiGecmisi = (c, evre) => [1, 2, 3, 4].filter(e => e <= evre).map(e => ({ evre: e, ...giysiOf(c, e) }));
+
 /* ---------- iyilik görevleri (yan görevler): iletişim, empati, yardım, takım. Dürüstlük esaslı; sınıfça konuşmayı ve yardımlaşmayı artırır ---------- */
 export const YAN_GOREVLER = [
   { id: "i1", kat: "iletişim", tur: "mama", metin: "Bugün sınıftan birine teşekkür et." }, { id: "i2", kat: "iletişim", tur: "su", metin: "Bir arkadaşına güzel bir söz söyle." },
