@@ -1,7 +1,7 @@
 // Sınıf hayvanı penceresi (TikTok tarzı tam ekran alt sayfa). Canlı sahne, seçim, besleme, çamur temizliği, seri ve bakıcı listesi.
 // Veri ek okuma doğurmaz: getChat() zaten dinlenen sınıf sohbet belgesini döndürür; yenileme "salvea-sohbetler" olayıyla gelir.
 import { petSvg, yumurtaSvg, yildizSvg } from "./pet-cizim.js";
-import { petDurum, HAYVANLAR, SABIT, gunAnahtar, seriHesapla, dondurulabilir, camurAdimim, oySayim, oyAyir, isimTemizle, bakimEkibi, bugunGorevler, hedefler, ogrenciListe } from "./petmantik.js";
+import { petDurum, HAYVANLAR, SABIT, gunAnahtar, seriHesapla, dondurulabilir, camurAdimim, oySayim, oyAyir, isimTemizle, bakimEkibi, bugunGorevler, hedefler, ogrenciListe, giysiOf, giysiGecmisi } from "./petmantik.js";
 import { sozSec, dokunTepkisi, eylemSozu } from "./pet-soz.js";
 import { petSec, oyVer, besle, temizle, yeniYumurta, seriDondur } from "./pet.js";
 import { maskotTur, maskotSec } from "./pet-rehber.js";
@@ -38,7 +38,7 @@ export function petEkraniAc({ chatId, me, getChat, onKapat }) {
   sahne.append(gok, zemin, ust, balon, hayvanKutu, yardimB, kapatB); sheet.append(sahne, panel); ov.append(sheet); document.body.append(ov); document.body.classList.add("pe-kilit");
   requestAnimationFrame(() => ov.classList.add("ac"));
 
-  let prevTemiz = null, taslak = null, ekipAcik = false, tur = null, dokunma = 0, mod = null, secim = null, anahtar = "", konusTimer = 0, balonTimer = 0, uykuUyanik = 0, kapali = false, yazilan = "", islemde = false;
+  let giysiOnizle = null, giysiT = 0, prevTemiz = null, taslak = null, ekipAcik = false, tur = null, dokunma = 0, mod = null, secim = null, anahtar = "", konusTimer = 0, balonTimer = 0, uykuUyanik = 0, kapali = false, yazilan = "", islemde = false;
   const veri = () => { const c = getChat(); return { c, d: c ? petDurum(c) : { var: false }, saat: new Date().getHours() }; };
   const ad = me.ad || "";
 
@@ -56,10 +56,10 @@ export function petEkraniAc({ chatId, me, getChat, onKapat }) {
     const gece = saat >= 21 || saat < 6, aksam = saat >= 17 && !gece, uyku = gece && !uykuUyanik && d.mod === "yasiyor";
     sahne.className = "pe-sahne " + (gece ? "gece" : aksam ? "aksam" : "gunduz");
     const cm0 = d.camur || {}, kirli = !!(cm0.var && !cm0.adimA) && d.mod === "yasiyor", kopuklu = !!(cm0.var && cm0.adimA && !cm0.temiz) && d.mod === "yasiyor";
-    const lider = d.mod === "secim" && d.oyDurumu && d.oyDurumu.toplam ? Object.keys(d.oyDurumu.dag).sort((a, b) => d.oyDurumu.dag[b] - d.oyDurumu.dag[a])[0] : "", onizle = mod === "degistir" ? (secim || "") : d.mod === "secim" ? ((taslak && taslak.tur) || lider || "") : "", k = [d.mod, d.tur && d.tur.id, d.evre, d.ruh, uyku ? 1 : 0, kirli ? 1 : 0, kopuklu ? 1 : 0, onizle, mod].join("|");
+    const giy = d.mod === "yasiyor" && d.evre >= 1 ? (giysiOnizle || (giysiOf(c, d.evre) || {}).id || null) : null, lider = d.mod === "secim" && d.oyDurumu && d.oyDurumu.toplam ? Object.keys(d.oyDurumu.dag).sort((a, b) => d.oyDurumu.dag[b] - d.oyDurumu.dag[a])[0] : "", onizle = mod === "degistir" ? (secim || "") : d.mod === "secim" ? ((taslak && taslak.tur) || lider || "") : "", k = [d.mod, d.tur && d.tur.id, d.evre, d.ruh, uyku ? 1 : 0, kirli ? 1 : 0, kopuklu ? 1 : 0, onizle, mod, giy].join("|");
     if (k === anahtar && !zorla) return; const ilkMi = !anahtar; anahtar = k;
     const kap = el("div", "pe-oyun"); kap.tabIndex = 0; kap.setAttribute("role", "button"); kap.setAttribute("aria-label", d.ad ? d.ad + " ile oyna" : "Hayvanla oyna");
-    kap.innerHTML = onizle ? petSvg({ tur: onizle, evre: 2, kimlik: "pe" }) : d.mod === "yildiz" ? yildizSvg() : d.mod === "secim" ? yumurtaSvg(null, { kimlik: "pe" }) : d.evre === 0 ? yumurtaSvg(d.tur.id, { kimlik: "pe" }) : petSvg({ tur: d.tur.id, evre: d.evre, ruh: d.ruh, uyku, kirli, kopuklu, kimlik: "pe" });
+    kap.innerHTML = onizle ? petSvg({ tur: onizle, evre: 2, kimlik: "pe" }) : d.mod === "yildiz" ? yildizSvg() : d.mod === "secim" ? yumurtaSvg(null, { kimlik: "pe" }) : d.evre === 0 ? yumurtaSvg(d.tur.id, { kimlik: "pe" }) : petSvg({ tur: d.tur.id, evre: d.evre, ruh: d.ruh, uyku, kirli, kopuklu, giysi: giy, kimlik: "pe" });
     kap.onclick = () => oyna(); kap.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); oyna(); } };
     hayvanKutu.querySelector(".pe-oyun")?.remove(); hayvanKutu.prepend(kap); if (!ilkMi && !zorla) { kap.classList.add("pop"); }
   }
@@ -75,7 +75,7 @@ export function petEkraniAc({ chatId, me, getChat, onKapat }) {
   function rastgeleKonus() {
     const { c, d, saat } = veri(); if (!c || !d.var) return;
     const sr = seriHesapla(c), dun = (() => { const p = c.pet || {}, dk = gunAnahtar(new Date(Date.now() - 864e5)), kim = Object.keys(p.bes || {}).filter(u => (p.bes[u] || []).some(x => x.startsWith(dk))); return kim.length ? (c.uyeAd && c.uyeAd[kim[Math.floor(Math.random() * kim.length)]]) : ""; })();
-    konus(sozSec(d, { ad, saat, seri: sr.n, bakici: (dun || "").split(" ")[0], siraBende: d.sira.includes(me.uid) && !benVerdi("m"), temizSirasi: !!(d.camur.var && !d.camur.temiz && (d.camur.a === me.uid || d.camur.b === me.uid)), es: ((c.uyeAd || {})[d.camur.a === me.uid ? d.camur.b : d.camur.a] || "").split(" ")[0] }));
+    konus(sozSec(d, { ad, saat, seri: sr.n, giysi: ((giysiOf(c, d.evre) || {}).ad || "").toLocaleLowerCase("tr"), bakici: (dun || "").split(" ")[0], siraBende: d.sira.includes(me.uid) && !benVerdi("m"), temizSirasi: !!(d.camur.var && !d.camur.temiz && (d.camur.a === me.uid || d.camur.b === me.uid)), es: ((c.uyeAd || {})[d.camur.a === me.uid ? d.camur.b : d.camur.a] || "").split(" ")[0] }));
   }
 
   /* ---------- panel ---------- */
@@ -143,6 +143,20 @@ export function petEkraniAc({ chatId, me, getChat, onKapat }) {
     const kutu = el("div", "pe-hedef");
     hedefler(c).forEach(h => { const sat = el("div", "pe-hs"), ust2 = el("div", "pe-hs-u"); ust2.append(el("small", "", "Sınıf hedefi: " + h.ad), el("b", "", h.n + "/" + h.hedef)); sat.append(ust2, bar(h.n, h.hedef, "hdf")); kutu.append(sat); });
     return kutu;
+  }
+  /* ---------- kıyafet dolabı: her evrede yeni kıyafet; satın alınmaz (mama ile alakası yok), büyüdükçe açılır ---------- */
+  const EVRE_AD = ["", "Yavru", "Çocuk", "Genç", "Yetişkin"];
+  function dolapCiz(d, c) {
+    const kutu = el("div", "pe-dolap"), baslik = el("div", "pe-dolap-b"), sira = el("div", "pe-dolap-s"), simdiki = (giysiOf(c, d.evre) || {}).id;
+    baslik.append(el("h3", "", "Kıyafet dolabı"), el("small", "", "Her evrede yeni bir kıyafet gelir. Satın alınmaz; hayvan büyüdükçe açılır."));
+    giysiGecmisi(c, d.evre).forEach(g => {
+      const b = el("button", "pe-dolap-c" + (g.id === simdiki ? " ustunde" : "")); b.type = "button"; b.setAttribute("aria-pressed", String(g.id === simdiki));
+      b.append(el("b", "", g.ad.charAt(0).toLocaleUpperCase("tr") + g.ad.slice(1)), el("small", "", EVRE_AD[g.evre] + (g.id === simdiki ? " · üstünde" : " · dokunup bak")));
+      b.onclick = () => { clearTimeout(giysiT); giysiOnizle = g.id === simdiki ? null : g.id; anahtar = ""; sahneCiz(true); if (giysiOnizle) { konus(eylemSozu("giysiDolap", { ad, giysi: g.ad.toLocaleLowerCase("tr") })); giysiT = setTimeout(() => { giysiOnizle = null; anahtar = ""; sahneCiz(true); }, 6000); } };
+      sira.append(b);
+    });
+    if (d.sonrakiEvre) { const k2 = el("div", "pe-dolap-c kilit"); k2.append(el("b", "", "Yeni kıyafet: ?"), el("small", "", d.sonrakiEvre.ad + " olunca açılır")); sira.append(k2); }
+    kutu.append(baslik, sira); return kutu;
   }
   function fikirCiz() {   // ödülsüz "günün iyilik fikri": sınıfça birbirimize yaklaşmak için küçük bir öneri
     const g = bugunGorevler(me.uid, gunAnahtar(new Date()))[0], k = el("div", "pe-fikir"); k.append(el("small", "", "Günün iyilik fikri · " + g.kat), el("p", "", g.metin)); return k;
@@ -217,7 +231,7 @@ export function petEkraniAc({ chatId, me, getChat, onKapat }) {
       if (bekletildi) k.append(el("p", "pe-sira-not", "Önce sırası gelen arkadaşlar besler: " + d.sira.map(u => ad1(c, u)).join(", ") + ". Saat " + SABIT.SIRA_SAATI + "’den sonra herkes katılabilir."));
       k.append(el("p", "pe-canta", "Çantan: " + e.mama + " mama · " + e.su + " su"));
     }
-    k.append(fikirCiz()); k.append(kazanCiz());
+    k.append(fikirCiz()); k.append(kazanCiz()); k.append(dolapCiz(d, c));
     k.append(ekipCiz(d, c));
     if (d.degistirilebilir && d.evre >= 0) { const l = el("button", "pe-link", "Hayvanı değiştir (bir kez, " + SABIT.DEGISTIR_MAMA + " mama)"); l.type = "button"; l.onclick = () => { mod = "degistir"; secim = null; yazilan = ""; panelCiz(); }; k.append(l); }
     return k;
@@ -305,6 +319,9 @@ export function petEkraniAc({ chatId, me, getChat, onKapat }) {
     if (onceki !== null && d.evre > +onceki) {
       konfeti(44); const b = el("div", "pe-banner"); b.innerHTML = "<b>" + (d.evre === 1 ? d.ad + " yumurtadan çıktı!" : d.ad + " büyüdü!") + "</b><span>" + d.evreAd + " oldu. Hepinize teşekkürler.</span>"; sahne.append(b); setTimeout(() => b.classList.add("git"), 3600); setTimeout(() => b.remove(), 4200);
       const kap = hayvanKutu.querySelector(".pe-oyun"); if (kap) kap.classList.add("pop"); setTimeout(() => konus(eylemSozu("evre", { ad })), 900);
+      const onc = d.evre > 1 ? giysiOf(c, d.evre - 1) : null, yen = giysiOf(c, d.evre);   // büyüyünce eski kıyafet dar gelir, yenisi çıkar
+      if (onc) setTimeout(() => konus(eylemSozu("giysiDar", { ad, giysi: onc.ad.toLocaleLowerCase("tr") })), 5200);
+      if (yen) setTimeout(() => konus(eylemSozu("giysiYeni", { ad, giysi: yen.ad.toLocaleLowerCase("tr") })), onc ? 10200 : 5200);
     }
     try { localStorage.setItem(ak, String(d.evre)); } catch (_) {}
   }
@@ -312,7 +329,7 @@ export function petEkraniAc({ chatId, me, getChat, onKapat }) {
   /* ---------- yaşam döngüsü ---------- */
   function yenile() { if (kapali) return; const { d } = veri(), t = d.var && d.camur ? d.camur.temiz : null; if (prevTemiz === false && t === true && !islemde) { kalpler(8); konfeti(26); const c = getChat(); konus(ad1(c, d.camur.yapanA || d.camur.a) + " ve " + ad1(c, d.camur.yapanB || d.camur.b) + " beni tertemiz yaptı, teşekkürler!"); } prevTemiz = t; sahneCiz(); if (!islemde) panelCiz(); evreKontrol(); }
   function kapat() {
-    if (kapali) return; kapali = true; clearInterval(zaman); clearTimeout(konusTimer); clearTimeout(balonTimer); window.removeEventListener("salvea-sohbetler", yenile); document.removeEventListener("keydown", tus); window.removeEventListener("resize", vvGuncelle); if (vv) { vv.removeEventListener("resize", vvGuncelle); vv.removeEventListener("scroll", vvGuncelle); } if (tur) tur.kapat();
+    if (kapali) return; kapali = true; clearInterval(zaman); clearTimeout(konusTimer); clearTimeout(balonTimer); clearTimeout(giysiT); window.removeEventListener("salvea-sohbetler", yenile); document.removeEventListener("keydown", tus); window.removeEventListener("resize", vvGuncelle); if (vv) { vv.removeEventListener("resize", vvGuncelle); vv.removeEventListener("scroll", vvGuncelle); } if (tur) tur.kapat();
     ov.classList.remove("ac"); ov.classList.add("kapan"); setTimeout(() => { ov.remove(); document.body.classList.remove("pe-kilit"); if (onKapat) onKapat(); }, 320);
   }
   const tus = e => {
