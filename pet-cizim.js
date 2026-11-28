@@ -12,6 +12,7 @@ const A = { // renk paletleri
 // s: boy, hm: kafa, bm: gövde, d: detay (0 yavru .. 3 yetişkin)
 const S = [null, { s: 0.62, hm: 1.16, bm: 0.8, d: 0 }, { s: 0.78, hm: 1.07, bm: 0.92, d: 1 }, { s: 0.9, hm: 1.0, bm: 1.0, d: 2 }, { s: 1, hm: 0.96, bm: 1.08, d: 3 }];
 
+let ANC = null;   // son çizilen hayvanın baş/boyun/göz konumları (kıyafetler buna göre yerleşir)
 const dk = (n) => Math.round(n * 10) / 10;
 const goz = (x, y, r, kapali, ruh) => {
   if (kapali) return `<path d="M${dk(x - r)} ${y} Q${x} ${dk(y + r * 0.95)} ${dk(x + r)} ${y}" stroke="#2a2420" stroke-width="2.6" fill="none" stroke-linecap="round"/>`;
@@ -30,6 +31,7 @@ function civciv(p, ruh, uyku, k) {
   const ayak = `<ellipse cx="86" cy="181" rx="11" ry="4.5" fill="${c.gaga}"/><ellipse cx="114" cy="181" rx="11" ry="4.5" fill="${c.gaga}"/>`;
   const tepe = `<g class="pt-tepe" style="transform-origin:100px ${topY}px"><path d="M100 ${topY + 3} q-5 -14 -12 -10 q4 4 3 12" fill="${c.koyu}"/><path d="M100 ${topY + 3} q2 -17 11 -14 q-5 5 -4 14" fill="${c.koyu}"/>${p.d >= 3 ? `<path d="M100 ${topY + 3} q-14 -9 -20 0 q8 0 12 6" fill="${c.koyu}"/>` : ""}</g>`;
   const kuyruk = p.d >= 2 ? `<g class="pt-kuyruk" style="transform-origin:140px ${cy + 6}px"><path d="M${100 + bw - 6} ${cy + 2} q${14 + p.d * 2} -8 ${20 + p.d * 3} -2 q-8 2 -10 8 q-4 -2 -${6 + p.d} 4z" fill="${c.koyu}"/></g>` : "";
+  ANC = { gy, ust: dk(gy - topY), hw: dk(bw * hm * 0.96 + 8), dx: 20, boyun: dk(gy + 22) };
   return `<defs>${gr(k + "b", c.acik, c.ana)}</defs>${p.d >= 2 ? dallar : ""}${ayak}${kuyruk}
   <ellipse cx="100" cy="${cy}" rx="${dk(bw * hm * 0.96 + 8)}" ry="${ry}" fill="url(#${k}b)" stroke="${c.koyu}" stroke-opacity=".25" stroke-width="1.5"/>
   <g class="pt-kanat pt-kl" style="transform-origin:${dk(100 - bw * hm - 2)}px ${cy}px"><ellipse cx="${dk(100 - bw * hm * 0.92)}" cy="${cy + 6}" rx="11" ry="${15 + p.d}" fill="${c.ana}" stroke="${c.koyu}" stroke-opacity=".3" stroke-width="1.4" transform="rotate(14 ${dk(100 - bw * hm * 0.92)} ${cy + 6})"/></g>
@@ -43,6 +45,7 @@ function samur(p, ruh, uyku, k) {
   const kuyruk = `<g class="pt-kuyruk" style="transform-origin:128px 160px"><path d="M126 160 q${20 + p.d * 4} 4 ${28 + p.d * 5} -${12 + p.d * 2} q-6 -2 -12 6 q-8 4 -16 0z" fill="${c.ana}" stroke="${c.koyu}" stroke-opacity=".35" stroke-width="1.4"/></g>`;
   const bacak = `<ellipse cx="80" cy="177" rx="13" ry="7" fill="${c.koyu}"/><ellipse cx="120" cy="177" rx="13" ry="7" fill="${c.koyu}"/>`;
   const bigik = p.d >= 1 ? `<g stroke="#3b2a20" stroke-width="1.5" stroke-linecap="round" opacity=".75"><path d="M82 ${hy + 16} l-17 -3"/><path d="M82 ${hy + 21} l-17 4"/><path d="M118 ${hy + 16} l17 -3"/><path d="M118 ${hy + 21} l17 4"/></g>` : "";
+  ANC = { gy: hy - 4, ust: dk(40 * hm - 4), hw: dk(40 * hm), dx: 18, boyun: dk(hy + 36 * hm) };
   return `<defs>${gr(k + "b", c.ana, c.koyu)}${gr(k + "k", "#a06b46", c.ana)}</defs>${kuyruk}${bacak}
   <ellipse cx="100" cy="${by}" rx="${dk(38 * bm + 4)}" ry="${dk(33 * bm + 4)}" fill="url(#${k}b)"/>
   <ellipse cx="100" cy="${by + 4}" rx="${dk(24 * bm + 2)}" ry="${dk(24 * bm)}" fill="${c.acik}"/>
@@ -59,6 +62,7 @@ function penguen(p, ruh, uyku, k) {
   const c = A.penguen, hm = p.hm, bm = p.bm, bw = 40 * bm + 6, bh = 52 * bm + 6, cy = 182 - bh + 4;
   const ayak = `<ellipse cx="84" cy="181" rx="12" ry="5" fill="${c.gaga}"/><ellipse cx="116" cy="181" rx="12" ry="5" fill="${c.gaga}"/>`;
   const boyun = p.d >= 3 ? `<path d="M${dk(100 - 20 * hm)} ${cy + 10} q${dk(20 * hm)} 16 ${dk(40 * hm)} 0 q-4 10 -${dk(20 * hm)} 12 q-${dk(16 * hm)} -2 -${dk(20 * hm)} -12z" fill="#f5c65a" opacity=".9"/>` : "";
+  { const g0 = dk(cy - bh * 0.5 + 12 * hm); ANC = { gy: g0, ust: dk(g0 - (cy - bh * 0.98)), hw: dk(bw * 0.8), dx: 16, boyun: dk(g0 + 22) }; }
   return `<defs>${gr(k + "b", "#4a5a72", c.ana)}</defs>${ayak}
   <g class="pt-kanat pt-kl" style="transform-origin:${dk(100 - bw + 4)}px ${cy + 12}px"><path d="M${dk(100 - bw + 8)} ${cy + 8} q-${14 + p.d * 2} ${14 + p.d * 3} -${4} ${28 + p.d * 5} q8 -6 12 -22z" fill="${c.koyu}"/></g>
   <g class="pt-kanat pt-kr" style="transform-origin:${dk(100 + bw - 4)}px ${cy + 12}px"><path d="M${dk(100 + bw - 8)} ${cy + 8} q${14 + p.d * 2} ${14 + p.d * 3} 4 ${28 + p.d * 5} q-8 -6 -12 -22z" fill="${c.koyu}"/></g>
@@ -71,6 +75,7 @@ function timsah(p, ruh, uyku, k) {
   const c = A.timsah, hm = p.hm, bm = p.bm, hy = 104, by = 152;
   const kuyruk = `<g class="pt-kuyruk" style="transform-origin:128px 168px"><path d="M126 166 q${24 + p.d * 5} 2 ${34 + p.d * 6} -${14 + p.d * 2} q-14 4 -22 8 q-6 4 -12 -4z" fill="${c.ana}" stroke="${c.koyu}" stroke-opacity=".4" stroke-width="1.4"/></g>`;
   const dikenler = Array.from({ length: 3 + p.d }, (_, i) => `<path d="M${dk(100 - 16 + i * (28 / (2 + p.d)) )} ${hy - 38 * hm + 4 + i * 2} l5 -9 l5 9z" fill="${c.koyu}"/>`).join("");
+  ANC = { gy: dk(hy - 31 * hm), ust: 25, hw: dk(41 * hm), dx: dk(20 * hm), boyun: dk(hy + 32 * hm) };
   return `<defs>${gr(k + "b", c.ana, c.koyu)}${gr(k + "k", "#8ccd6f", c.ana)}</defs>${kuyruk}
   <ellipse cx="82" cy="178" rx="13" ry="6.5" fill="${c.koyu}"/><ellipse cx="118" cy="178" rx="13" ry="6.5" fill="${c.koyu}"/>
   <ellipse cx="100" cy="${by}" rx="${dk(40 * bm + 4)}" ry="${dk(32 * bm + 4)}" fill="url(#${k}b)"/><ellipse cx="100" cy="${by + 5}" rx="${dk(26 * bm + 2)}" ry="${dk(23 * bm)}" fill="${c.acik}"/>
@@ -87,6 +92,7 @@ function timsah(p, ruh, uyku, k) {
 function tavsan(p, ruh, uyku, k) {
   const c = A.tavsan, hm = p.hm, bm = p.bm, hy = 108, by = 155, kb = 27 + p.d * 4.5;
   const kulak = (x, yon) => `<g class="pt-kulak pt-k${yon < 0 ? "l" : "r"}" style="transform-origin:${x}px ${hy - 28 * hm}px"><ellipse cx="${x}" cy="${dk(hy - 28 * hm - kb * 0.7)}" rx="${dk(11.5 * hm)}" ry="${dk(kb)}" fill="${c.ana}" stroke="${c.koyu}" stroke-opacity=".55" stroke-width="1.4" transform="rotate(${yon * -6} ${x} ${hy - 28 * hm})"/><ellipse cx="${x}" cy="${dk(hy - 28 * hm - kb * 0.7)}" rx="${dk(5.4 * hm)}" ry="${dk(kb * 0.78)}" fill="${c.ic}" transform="rotate(${yon * -6} ${x} ${hy - 28 * hm})"/></g>`;
+  ANC = { gy: hy - 3, ust: dk(35 * hm), hw: dk(38 * hm), dx: 18, boyun: dk(hy + 35 * hm) };
   return `<defs>${gr(k + "b", c.acik, c.ana)}</defs>
   <g class="pt-kuyruk" style="transform-origin:130px 170px"><circle cx="131" cy="168" r="11" fill="#fff" stroke="${c.koyu}" stroke-width="1.4"/></g>
   <ellipse cx="82" cy="178" rx="13" ry="6.5" fill="${c.ana}" stroke="${c.koyu}" stroke-width="1.3"/><ellipse cx="118" cy="178" rx="13" ry="6.5" fill="${c.ana}" stroke="${c.koyu}" stroke-width="1.3"/>
@@ -103,6 +109,7 @@ function kedi(p, ruh, uyku, k) {
   const c = A.kedi, hm = p.hm, bm = p.bm, hy = 102, by = 152;
   const kuyruk = `<g class="pt-kuyruk" style="transform-origin:130px 166px"><path d="M128 168 q${22 + p.d * 5} 2 ${22 + p.d * 5} -${22 + p.d * 5} q-2 -${6 + p.d} -8 -2 q4 ${12 + p.d * 2} -${8 + p.d * 2} ${22 + p.d * 3}z" fill="${c.ana}" stroke="${c.koyu}" stroke-opacity=".4" stroke-width="1.4"/><path d="M${150 + p.d * 5} ${150 - p.d * 2} l-6 6" stroke="${c.koyu}" stroke-width="3" stroke-linecap="round"/></g>`;
   const cizgi = (x, y, yon) => `<path d="M${x} ${y} l${6 * yon} 7M${x + 5 * yon} ${y - 2} l${6 * yon} 7" stroke="${c.koyu}" stroke-width="2.6" stroke-linecap="round" opacity=".85"/>`;
+  ANC = { gy: hy - 2, ust: dk(37 * hm), hw: dk(39 * hm), dx: 18, boyun: dk(hy + 37 * hm) };
   return `<defs>${gr(k + "b", "#f1b979", c.ana)}</defs>${kuyruk}
   <ellipse cx="82" cy="178" rx="12" ry="6.5" fill="${c.acik}" stroke="${c.koyu}" stroke-opacity=".4" stroke-width="1.2"/><ellipse cx="118" cy="178" rx="12" ry="6.5" fill="${c.acik}" stroke="${c.koyu}" stroke-opacity=".4" stroke-width="1.2"/>
   <ellipse cx="100" cy="${by}" rx="${dk(36 * bm + 4)}" ry="${dk(30 * bm + 4)}" fill="url(#${k}b)"/><ellipse cx="100" cy="${by + 5}" rx="${dk(21 * bm + 2)}" ry="${dk(20 * bm)}" fill="${c.acik}"/>
@@ -120,20 +127,38 @@ function kedi(p, ruh, uyku, k) {
 }
 const CIZ = { civciv, samur, penguen, timsah, tavsan, kedi };
 
+
+/* ---------- kıyafetler: her evrede farklı; hayvanın çapa noktalarına göre yerleşir ---------- */
+const GIY = {
+  bere: a => { const t = a.gy - a.ust, w = a.hw * 0.86; return { on: `<g class="pt-giy"><path d="M${dk(100 - w)} ${dk(t + 17)} Q${dk(100 - w * 0.9)} ${dk(t - 20)} 100 ${dk(t - 21)} Q${dk(100 + w * 0.9)} ${dk(t - 20)} ${dk(100 + w)} ${dk(t + 17)}Z" fill="#e8553f"/><rect x="${dk(100 - w - 2)}" y="${dk(t + 10)}" width="${dk(w * 2 + 4)}" height="11" rx="5.5" fill="#f7efe1"/><circle cx="100" cy="${dk(t - 22)}" r="6.5" fill="#f7efe1"/></g>` }; },
+  onluk: a => { const b = a.boyun; return { on: `<g class="pt-giy"><path d="M80 ${b} Q100 ${b + 9} 120 ${b} L115 ${b + 30} Q100 ${b + 38} 85 ${b + 30}Z" fill="#7cc4f0" stroke="#4aa3d8" stroke-width="1.5"/><path d="M100 ${b + 12} c-5 -6 -11 0 -5 6 l5 5 l5 -5 c6 -6 0 -12 -5 -6z" fill="#fff"/></g>` }; },
+  fiyonk: a => { const t = a.gy - a.ust, x = dk(100 - a.hw * 0.62), y = dk(t + 12); return { on: `<g class="pt-giy"><path d="M${x} ${y} l-17 -9 v18z M${x} ${y} l17 -9 v18z" fill="#f48fb1" stroke="#d96b93" stroke-width="1.2" stroke-linejoin="round"/><circle cx="${x}" cy="${y}" r="4.5" fill="#d96b93"/></g>` }; },
+  atki: a => { const b = a.boyun, w = dk(a.hw * 0.74); return { on: `<g class="pt-giy"><path d="M${100 - w} ${b - 3} Q100 ${b + 13} ${100 + w} ${b - 3} l-1 11 Q100 ${b + 25} ${101 - w} ${b + 8}Z" fill="#e74c3c"/><path d="M${dk(100 - w * 0.55)} ${b + 4} q6 5 12 3 M${dk(100 + w * 0.1)} ${b + 7} q6 3 12 0" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" opacity=".85"/><path d="M${dk(100 + w * 0.5)} ${b + 6} l9 22 l-10 2 l-6 -18z" fill="#c0392b"/></g>` }; },
+  kasket: a => { const t = a.gy - a.ust, w = a.hw * 0.84; return { on: `<g class="pt-giy"><path d="M${dk(100 - w)} ${dk(t + 15)} Q${dk(100 - w * 0.8)} ${dk(t - 13)} 100 ${dk(t - 14)} Q${dk(100 + w * 0.8)} ${dk(t - 13)} ${dk(100 + w)} ${dk(t + 15)}Z" fill="#3b82f6"/><path d="M${dk(100 - w * 0.15)} ${dk(t + 13)} h${dk(w * 1.05)} q2 8 -${dk(w * 0.2)} 8 h-${dk(w * 0.8)}z" fill="#2d63c8"/><circle cx="100" cy="${dk(t - 14)}" r="3.4" fill="#2d63c8"/></g>` }; },
+  gozluk: a => { const r = dk(a.dx * 0.72); return { on: `<g class="pt-giy" fill="rgba(255,255,255,.2)" stroke="#2f3b4a" stroke-width="2.6"><circle cx="${100 - a.dx}" cy="${a.gy}" r="${r}"/><circle cx="${100 + a.dx}" cy="${a.gy}" r="${r}"/><path d="M${dk(100 - a.dx + r)} ${a.gy} Q100 ${a.gy - 5} ${dk(100 + a.dx - r)} ${a.gy}" fill="none"/><path d="M${dk(100 - a.dx - r)} ${a.gy} l-9 -3M${dk(100 + a.dx + r)} ${a.gy} l9 -3" fill="none"/></g>` }; },
+  pelerin: a => { const b = a.boyun, w = a.hw, yb = Math.min(b + 50, 179), ym = dk((b + yb) / 2); return { arka: `<g class="pt-giy"><path d="M${dk(100 - w * 0.5)} ${b - 2} Q${dk(100 - w * 1.32)} ${ym} ${dk(100 - w * 1.1)} ${yb} Q100 ${yb + 9} ${dk(100 + w * 1.1)} ${yb} Q${dk(100 + w * 1.32)} ${ym} ${dk(100 + w * 0.5)} ${b - 2}Z" fill="#d83a3a"/></g>`, on: `<g class="pt-giy"><path d="M${dk(100 - w * 0.5)} ${b - 1} Q100 ${b + 9} ${dk(100 + w * 0.5)} ${b - 1}" fill="none" stroke="#b52a2a" stroke-width="3" stroke-linecap="round"/><circle cx="100" cy="${b + 4}" r="5" fill="#f4c542" stroke="#c99a1e" stroke-width="1.4"/></g>` }; },
+  gunes: a => { const w = dk(a.dx * 0.66), h = dk(a.dx * 0.62); return { on: `<g class="pt-giy"><rect x="${dk(100 - a.dx - w)}" y="${dk(a.gy - h / 2)}" width="${dk(w * 2)}" height="${h}" rx="${dk(h * 0.45)}" fill="#1f2630"/><rect x="${dk(100 + a.dx - w)}" y="${dk(a.gy - h / 2)}" width="${dk(w * 2)}" height="${h}" rx="${dk(h * 0.45)}" fill="#1f2630"/><path d="M${dk(100 - a.dx + w)} ${dk(a.gy - h * 0.1)} H${dk(100 + a.dx - w)}" stroke="#1f2630" stroke-width="3"/><path d="M${dk(100 - a.dx - w * 0.6)} ${dk(a.gy - h * 0.15)} l${dk(w * 0.5)} -${dk(h * 0.2)} M${dk(100 + a.dx - w * 0.6)} ${dk(a.gy - h * 0.15)} l${dk(w * 0.5)} -${dk(h * 0.2)}" stroke="#fff" stroke-width="2" opacity=".5" stroke-linecap="round"/></g>` }; },
+  kulaklik: a => { const t = a.gy - a.ust, w = a.hw; return { on: `<g class="pt-giy"><path d="M${dk(100 - w * 0.98)} ${a.gy + 4} Q${dk(100 - w * 1.0)} ${dk(t - 8)} 100 ${dk(t - 8)} Q${dk(100 + w * 1.0)} ${dk(t - 8)} ${dk(100 + w * 0.98)} ${a.gy + 4}" fill="none" stroke="#2f3b4a" stroke-width="5" stroke-linecap="round"/><rect x="${dk(100 - w * 1.1)}" y="${a.gy - 8}" width="13" height="22" rx="6" fill="#e8553f"/><rect x="${dk(100 + w * 1.1 - 13)}" y="${a.gy - 8}" width="13" height="22" rx="6" fill="#e8553f"/></g>` }; },
+  tac: a => { const t = a.gy - a.ust, w = dk(a.hw * 0.62), x0 = 100 - w, x1 = 100 + w; return { on: `<g class="pt-giy"><path d="M${x0} ${dk(t + 12)} L${x0} ${dk(t - 14)} L${dk(100 - w * 0.5)} ${dk(t)} L100 ${dk(t - 18)} L${dk(100 + w * 0.5)} ${dk(t)} L${x1} ${dk(t - 14)} L${x1} ${dk(t + 12)}Z" fill="#f4c542" stroke="#c99a1e" stroke-width="1.6" stroke-linejoin="round"/><circle cx="100" cy="${dk(t - 4)}" r="3.2" fill="#e74c3c"/><circle cx="${dk(100 - w * 0.62)}" cy="${dk(t + 3)}" r="2.4" fill="#3b82f6"/><circle cx="${dk(100 + w * 0.62)}" cy="${dk(t + 3)}" r="2.4" fill="#3b82f6"/></g>` }; },
+  papyon: a => { const b = a.boyun + 3; return { on: `<g class="pt-giy"><path d="M100 ${b} l-17 -9 v18z M100 ${b} l17 -9 v18z" fill="#c0392b" stroke="#962d22" stroke-width="1.2" stroke-linejoin="round"/><rect x="95.5" y="${b - 4.5}" width="9" height="9" rx="3" fill="#962d22"/></g>` }; },
+  madalya: a => { const b = a.boyun; return { on: `<g class="pt-giy"><path d="M88 ${b - 1} L100 ${b + 16} L112 ${b - 1} L106 ${b - 3} L100 ${b + 7} L94 ${b - 3}Z" fill="#3b82f6"/><circle cx="100" cy="${b + 21}" r="8" fill="#f4c542" stroke="#c99a1e" stroke-width="1.6"/><path d="M100 ${b + 16.5} l1.9 3.8 l4.2 .6 l-3 3 l.7 4.2 l-3.8 -2 l-3.8 2 l.7 -4.2 l-3 -3 l4.2 -.6z" fill="#fff4c6"/></g>` }; },
+};
+export const GIYSI_KIMLIKLERI = Object.keys(GIY);
+
 // çamur lekeleri (kirli hâl)
 const camur = `<g class="pt-camur"><path d="M62 150 q6 -9 14 -3 q8 -2 6 7 q-6 7 -14 3 q-8 0 -6 -7z" fill="#7a5532"/><path d="M118 132 q7 -8 14 -2 q7 1 4 8 q-6 5 -13 1 q-7 -2 -5 -7z" fill="#7a5532"/><path d="M96 166 q5 -6 11 -1 q6 0 4 6 q-5 4 -11 1 q-6 -1 -4 -6z" fill="#8b6540"/><circle cx="78" cy="94" r="4.5" fill="#7a5532"/><circle cx="126" cy="112" r="3.4" fill="#8b6540"/></g>`;
 // köpük (temizliğin 1. adımından sonra): yüzen kabarcıklar
 const kopuk = `<g class="pt-kopuk" fill="#fff" stroke="#9fd3f2" stroke-width="1.6"><circle cx="70" cy="112" r="9"/><circle cx="132" cy="104" r="7"/><circle cx="100" cy="82" r="6"/><circle cx="82" cy="152" r="8"/><circle cx="124" cy="150" r="10"/><circle cx="100" cy="132" r="5"/><circle cx="60" cy="86" r="4"/><circle cx="142" cy="130" r="5"/></g>`;
 const zzz = `<g class="pt-zzz" fill="#7c8cc4" font-family="Georgia,serif" font-weight="700"><text x="138" y="62" font-size="20">z</text><text x="150" y="44" font-size="15">z</text><text x="159" y="30" font-size="11">z</text></g>`;
 
-export function petSvg({ tur, evre = 2, ruh = "mutlu", uyku = false, kirli = false, kopuklu = false, kimlik = "p" } = {}) {
+export function petSvg({ tur, evre = 2, ruh = "mutlu", uyku = false, kirli = false, kopuklu = false, giysi = null, kimlik = "p" } = {}) {
   const f = CIZ[tur]; if (!f) return yumurtaSvg(null, { kimlik });
   if (evre <= 0) return yumurtaSvg(tur, { kimlik });
   const p = S[Math.min(4, Math.max(1, evre))], k = kimlik + tur + evre;
-  const govde = f(p, ruh, uyku || ruh === "cokac", k);
+  const govde = f(p, ruh, uyku || ruh === "cokac", k), gy = giysi && GIY[giysi] ? GIY[giysi](ANC) : null;
   return `<svg class="pet-svg ruh-${ruh}${uyku ? " uyku" : ""}" viewBox="0 0 200 200" role="img" aria-label="${A[tur] ? tur : "hayvan"}" xmlns="http://www.w3.org/2000/svg">
   <ellipse class="pt-golge" cx="100" cy="183" rx="${dk(46 * p.s + 8)}" ry="${dk(7 * p.s + 2)}" fill="rgba(0,0,0,.15)"/>
-  <g transform="translate(100 182) scale(${p.s}) translate(-100 -182)"><g class="pt-nef">${govde}${kirli ? camur : ""}${kopuklu ? kopuk : ""}</g></g>${uyku ? zzz : ""}</svg>`;
+  <g transform="translate(100 182) scale(${p.s}) translate(-100 -182)"><g class="pt-nef">${gy && gy.arka ? gy.arka : ""}${govde}${kirli ? camur : ""}${kopuklu ? kopuk : ""}${gy ? gy.on : ""}</g></g>${uyku ? zzz : ""}</svg>`;
 }
 // yumurta: hayvana özel benekli desen; tur yoksa nötr
 export function yumurtaSvg(tur, { kimlik = "e", catlak = 0 } = {}) {
