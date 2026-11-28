@@ -1,7 +1,8 @@
-<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Salvea · Giriş</title><link rel="icon" type="image/png" href="logo.png"><link rel="apple-touch-icon" href="logo.png"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet"><link rel="stylesheet" href="auth.css"></head><body>
+<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Salvea · Giriş</title><link rel="icon" type="image/png" href="logo.png"><link rel="apple-touch-icon" href="logo.png"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet"><link rel="stylesheet" href="auth.css"><link rel="stylesheet" href="pet.css"><link rel="stylesheet" href="tanitim.css"></head><body>
 <aside class="brand"><div><h2>Burada herkesin bir yeri var.</h2><p>Salvea, sınıftaki herkesin birbiriyle tanışıp kaynaşması için haftalık karma takımlar kurar.</p></div><img src="logo.png" alt="Salvea logosu"><small style="color:#8fa393">Salvea · Okul rehberlik platformu</small></aside>
 <main><div class="card">
-<h1>Tekrar hoş geldin</h1><p class="sub">E-postan ve şifrenle giriş yap.</p>
+<button class="tn-pill" type="button" data-tanitim aria-label="Salvea nedir? Kısa tanıtımı gör"><i>?</i>Salvea nedir?</button>
+   <h1>Tekrar hoş geldin</h1><p class="sub">E-postan ve şifrenle giriş yap.</p>
 <div class="sess" id="sess" hidden>
 <p><b id="sm"></b> olarak bu tarayıcıda oturum açık.</p>
 <div class="stack" style="margin-top:12px"><button class="btn" id="cont" type="button">Devam et</button><button class="btn ghost" id="other" type="button">Başka hesapla giriş yap</button></div>
@@ -53,4 +54,4 @@ window.salveaForgot = async () => {
   try { await sendPasswordResetEmail(auth, m); } catch (_) {}
   show("Bu adres kayıtlıysa şifre sıfırlama bağlantısı gönderildi. Spam klasörüne de bak.", true);
 };
-</script></body></html>
+</script><script type="module" src="tanitim.js"></script></body></html>
