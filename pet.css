@@ -214,3 +214,11 @@ body.pe-kilit{overflow:hidden}
 .pe-fikir{background:#e7f3e9;border-radius:18px;padding:12px 14px;display:grid;gap:4px}.pe-fikir small{font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:#4f7a58}.pe-fikir p{margin:0;font-size:.92rem;font-weight:600;line-height:1.4;color:#27402d}
 .pe-kazan{margin:0;padding:12px 14px;border-radius:16px;background:var(--mist);font-size:.82rem;line-height:1.55;color:#5b6b61}.pe-kazan b{color:var(--ink)}
 .pe-sira-not{margin:0;padding:9px 12px;border-radius:12px;background:#fff1c9;color:#7a5a12;font-size:.82rem;line-height:1.4}
+
+/* ================= kıyafetler ve dolap ================= */
+.pet-svg .pt-giy{transform-box:fill-box;transform-origin:50% 100%;animation:ptGiyGel .7s cubic-bezier(.2,1.4,.4,1)}
+@keyframes ptGiyGel{0%{transform:translateY(-14px) scale(.6);opacity:0}100%{transform:none;opacity:1}}
+.pe-dolap{display:grid;gap:8px}.pe-dolap-b{display:grid;gap:2px}.pe-dolap-b h3{margin:0}.pe-dolap-b small{font-size:.76rem;color:#6d7a72}
+.pe-dolap-s{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 6px;-webkit-overflow-scrolling:touch;scroll-snap-type:x proximity}
+.pe-dolap-c{flex:none;scroll-snap-align:start;display:grid;gap:2px;text-align:left;border:2px solid var(--line);background:var(--paper);color:var(--ink);border-radius:14px;padding:9px 12px;font:inherit;cursor:pointer;min-width:132px;transition:transform .15s,border-color .15s}
+.pe-dolap-c:hover{transform:translateY(-2px)}.pe-dolap-c b{font-size:.86rem}.pe-dolap-c small{font-size:.72rem;color:#6d7a72}.pe-dolap-c.ustunde{border-color:#4fa862;background:#eaf5ec}.pe-dolap-c.kilit{border-style:dashed;opacity:.7;cursor:default}.pe-dolap-c.kilit:hover{transform:none}
