@@ -1,7 +1,7 @@
-<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Salvea · Kayıt ol</title><link rel="icon" type="image/png" href="logo.png"><link rel="apple-touch-icon" href="logo.png"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet"><link rel="stylesheet" href="auth.css"></head><body>
+<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Salvea · Kayıt ol</title><link rel="icon" type="image/png" href="logo.png"><link rel="apple-touch-icon" href="logo.png"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet"><link rel="stylesheet" href="auth.css"><link rel="stylesheet" href="pet.css"><link rel="stylesheet" href="tanitim.css"></head><body>
 <aside class="brand"><div><h2>Burada herkesin bir yeri var.</h2><p>Salvea, sınıftaki herkesin birbiriyle tanışıp kaynaşması için haftalık karma takımlar kurar.</p></div><img src="logo.png" alt="Salvea logosu"><small style="color:#8fa393">Salvea · Okul rehberlik platformu</small></aside>
 <main class="top"><div class="card wide">
-<div id="top"><h1>Salvea'ya katıl</h1><p class="sub">Hesabını oluştur, takımını ve görevlerini görmeye başla.</p>
+<div id="top"><button class="tn-pill" type="button" data-tanitim aria-label="Salvea nedir? Kısa tanıtımı gör"><i>?</i>Salvea nedir?</button><h1>Salvea'ya katıl</h1><p class="sub">Hesabını oluştur, takımını ve görevlerini görmeye başla.</p>
 <div class="roles" role="group" aria-label="Hesap türü">
 <button type="button" data-role="student" aria-pressed="true"><b>Öğrenciyim</b><span>Takıma katıl, görev yap</span></button>
 <button type="button" data-role="teacher" aria-pressed="false"><b>PDR öğretmeniyim</b><span>Okulumu yönetirim</span></button></div></div>
@@ -229,4 +229,4 @@ window.salveaRegister = async () => {
     $("go").disabled = false; $("go").textContent = "Hesabı oluştur";
   }
 };
-</script></body></html>
+</script><script type="module" src="tanitim.js"></script></body></html>
