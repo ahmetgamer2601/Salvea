@@ -259,6 +259,9 @@ html[data-tema="koyu"] .pe-fikir small{color:#b6d0bb}
 html[data-tema="koyu"] .pe-fikir p{color:#d9e8dc}
 html[data-tema="koyu"] .pe-kazan{color:#bccbc2}
 html[data-tema="koyu"] .pe-sira-not{background:#3f361b;color:#e8dcc2}
+html[data-tema="koyu"] .pe-dolap-b small{color:#b1c2b8}
+html[data-tema="koyu"] .pe-dolap-c small{color:#b1c2b8}
+html[data-tema="koyu"] .pe-dolap-c.ustunde{background:#1d3421}
 
 /* ---- elle eklenen düzeltmeler ---- */
 html[data-tema="koyu"] body{background-color:var(--cream);background-image:none}
